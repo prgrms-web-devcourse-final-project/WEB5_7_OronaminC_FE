@@ -11,12 +11,12 @@ const Home = () => {
         <Link to="/" className="text-xl font-bold">
           Join.in
         </Link>
-        <button
-          type="button"
+        <Link
+          to="/login"
           className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-1 rounded-full text-sm font-medium transition-colors"
         >
           로그인 / 회원가입
-        </button>
+        </Link>
       </header>
 
       {/* 메인 컨텐츠 */}
