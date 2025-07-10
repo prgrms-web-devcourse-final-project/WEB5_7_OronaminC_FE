@@ -6,6 +6,7 @@ const Home = lazy(() => import('../pages/Home'));
 const Login = lazy(() => import('../pages/Login'));
 const NotFound = lazy(() => import('../pages/NotFound'));
 const CreateRoom = lazy(() => import('../pages/CreateRoom'));
+const PresentationRoom = lazy(() => import('../pages/PresentationRoom'));
 
 export const routes: RouteObject[] = [
   {
@@ -29,6 +30,14 @@ export const routes: RouteObject[] = [
     element: (
       <Suspense fallback={<LoadingFallback />}>
         <CreateRoom />
+      </Suspense>
+    ),
+  },
+  {
+    path: '/room/:roomId',
+    element: (
+      <Suspense fallback={<LoadingFallback />}>
+        <PresentationRoom />
       </Suspense>
     ),
   },
