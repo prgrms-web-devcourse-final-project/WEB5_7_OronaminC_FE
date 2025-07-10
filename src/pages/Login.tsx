@@ -34,13 +34,13 @@ const Login = () => {
                       </h3>
                       <ul className="space-y-1 text-gray-600 text-sm">
                         <li className="flex items-center">
-                          - 발표방을 생성, 관리
+                          • 발표방을 생성, 관리
                         </li>
                         <li className="flex items-center">
-                          - 참여 기록을 저장
+                          • 참여 기록을 저장
                         </li>
                         <li className="flex items-center">
-                          - 발표 리포트를 확인할 수 있습니다
+                          • 발표 리포트를 확인할 수 있습니다
                         </li>
                       </ul>
                       <div className="absolute -top-2 right-10 w-3 h-3 bg-white border-t border-l border-gray-200 transform rotate-45"></div>
