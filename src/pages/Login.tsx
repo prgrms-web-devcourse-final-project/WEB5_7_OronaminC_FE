@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 
 const Login = () => {
   const navigate = useNavigate();
@@ -10,12 +10,6 @@ const Login = () => {
 
   return (
     <div className="min-h-screen flex flex-col">
-      <header className="py-4 px-6 border-b border-gray-100 flex justify-between items-center">
-        <Link to="/" className="text-xl font-bold">
-          Join.in
-        </Link>
-      </header>
-
       <div className="flex-1 flex items-center justify-center p-4">
         <div className="w-full max-w-md">
           <div className="bg-gray-50 p-8 rounded-lg h-[600px]">

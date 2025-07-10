@@ -1,6 +1,7 @@
 import { lazy, Suspense } from 'react';
 import type { RouteObject } from 'react-router-dom';
 import LoadingFallback from '../components/LoadingFallback';
+import MainLayout from '../layouts/MainLayout';
 
 const Home = lazy(() => import('../pages/Home'));
 const Login = lazy(() => import('../pages/Login'));
@@ -12,59 +13,64 @@ const PresentationReport = lazy(() => import('../pages/PresentationReport'));
 
 export const routes: RouteObject[] = [
   {
-    path: '/',
-    element: (
-      <Suspense fallback={<LoadingFallback />}>
-        <Home />
-      </Suspense>
-    ),
-  },
-  {
-    path: '/login',
-    element: (
-      <Suspense fallback={<LoadingFallback />}>
-        <Login />
-      </Suspense>
-    ),
-  },
-  {
-    path: '/create-room',
-    element: (
-      <Suspense fallback={<LoadingFallback />}>
-        <CreateRoom />
-      </Suspense>
-    ),
-  },
-  {
-    path: '/room/:roomId',
-    element: (
-      <Suspense fallback={<LoadingFallback />}>
-        <PresentationRoom />
-      </Suspense>
-    ),
-  },
-  {
-    path: '/room/:roomId/report',
-    element: (
-      <Suspense fallback={<LoadingFallback />}>
-        <PresentationReport />
-      </Suspense>
-    ),
-  },
-  {
-    path: '/mypage',
-    element: (
-      <Suspense fallback={<LoadingFallback />}>
-        <MyPage />
-      </Suspense>
-    ),
-  },
-  {
-    path: '*',
-    element: (
-      <Suspense fallback={<LoadingFallback />}>
-        <NotFound />
-      </Suspense>
-    ),
-  },
+    element: <MainLayout />,
+    children: [
+      {
+        path: '/',
+        element: (
+          <Suspense fallback={<LoadingFallback />}>
+            <Home />
+          </Suspense>
+        ),
+      },
+      {
+        path: '/login',
+        element: (
+          <Suspense fallback={<LoadingFallback />}>
+            <Login />
+          </Suspense>
+        ),
+      },
+      {
+        path: '/create-room',
+        element: (
+          <Suspense fallback={<LoadingFallback />}>
+            <CreateRoom />
+          </Suspense>
+        ),
+      },
+      {
+        path: '/room/:roomId',
+        element: (
+          <Suspense fallback={<LoadingFallback />}>
+            <PresentationRoom />
+          </Suspense>
+        ),
+      },
+      {
+        path: '/room/:roomId/report',
+        element: (
+          <Suspense fallback={<LoadingFallback />}>
+            <PresentationReport />
+          </Suspense>
+        ),
+      },
+      {
+        path: '/mypage',
+        element: (
+          <Suspense fallback={<LoadingFallback />}>
+            <MyPage />
+          </Suspense>
+        ),
+      },
+      {
+        path: '*',
+        element: (
+          <Suspense fallback={<LoadingFallback />}>
+            <NotFound />
+          </Suspense>
+        ),
+      },
+    ]
+  }
 ];
