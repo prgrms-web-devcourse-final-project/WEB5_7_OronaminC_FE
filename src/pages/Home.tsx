@@ -1,12 +1,13 @@
-import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useState } from "react";
+import { Link } from "react-router-dom";
+
+// 화살표 연결선 CSS 클래스
 
 const Home = () => {
-  const [roomCode, setRoomCode] = useState('');
+  const [roomCode, setRoomCode] = useState("");
 
   return (
     <div className="min-h-screen flex flex-col">
-      {/* 헤더 */}
       <header className="py-4 px-6 border-b border-gray-100 flex justify-between items-center">
         <Link to="/" className="text-xl font-bold">
           Join.in
@@ -19,9 +20,7 @@ const Home = () => {
         </Link>
       </header>
 
-      {/* 메인 컨텐츠 */}
       <main className="flex-1 flex flex-col items-center justify-center p-4 gap-20">
-        {/* 상단 제목 섹션 */}
         <section className="text-center max-w-md">
           <h1 className="text-3xl font-bold mb-3">실시간 발표 질의응답</h1>
           <p className="text-gray-600">
@@ -29,9 +28,8 @@ const Home = () => {
           </p>
         </section>
 
-        {/* 코드 입력 섹션 */}
         <section className="w-full max-w-md">
-          <div className="border rounded-lg overflow-hidden flex">
+          <div className="border rounded-lg overflow-hidden flex border-gray-200">
             <div className="flex-1 px-3 py-2 flex items-center bg-white">
               <input
                 type="text"
@@ -43,19 +41,24 @@ const Home = () => {
             </div>
             <button
               type="button"
-              className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 font-medium transition-colors"
+              className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 font-medium transition-colors m-2 rounded-lg cursor-pointer"
             >
               입장
             </button>
           </div>
         </section>
 
-        {/* 사용법 섹션 */}
         <section className="w-full max-w-3xl">
-          <h2 className="text-xl font-bold text-center mb-10">사용법</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {/* 1단계: 발표방 생성 */}
-            <div className="text-center">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 relative">
+            <div className="hidden md:block absolute top-[20px] left-[calc(16.7%+20px)] right-[calc(55%)] h-[2px] bg-gray-300 z-0">
+              <div className="absolute -right-[8px] -top-[4px] w-0 h-0 border-t-[5px] border-t-transparent border-b-[5px] border-b-transparent border-l-[8px] border-l-gray-300"></div>
+            </div>
+
+            <div className="hidden md:block absolute top-[20px] left-[calc(50%+30px)] right-[calc(16.7%+30px)] h-[2px] bg-gray-300 z-0">
+              <div className="absolute -right-[8px] -top-[4px] w-0 h-0 border-t-[5px] border-t-transparent border-b-[5px] border-b-transparent border-l-[8px] border-l-gray-300"></div>
+            </div>
+
+            <div className="text-center relative z-10">
               <div className="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold mx-auto mb-4">
                 1
               </div>
@@ -67,8 +70,7 @@ const Home = () => {
               </p>
             </div>
 
-            {/* 2단계: 코드 공유 */}
-            <div className="text-center">
+            <div className="text-center relative z-10">
               <div className="w-10 h-10 rounded-full bg-green-500 flex items-center justify-center text-white font-bold mx-auto mb-4">
                 2
               </div>
@@ -80,8 +82,7 @@ const Home = () => {
               </p>
             </div>
 
-            {/* 3단계: 실시간 소통 */}
-            <div className="text-center">
+            <div className="text-center relative z-10">
               <div className="w-10 h-10 rounded-full bg-red-500 flex items-center justify-center text-white font-bold mx-auto mb-4">
                 3
               </div>
@@ -96,9 +97,8 @@ const Home = () => {
         </section>
       </main>
 
-      {/* 푸터 */}
       <footer className="py-4 text-center text-xs text-gray-400">
-        © 2025 OAA Live. 실시간 발표 질의응답 서비스
+        © 2025 OronaminC. 실시간 발표 질의응답 서비스
       </footer>
     </div>
   );
