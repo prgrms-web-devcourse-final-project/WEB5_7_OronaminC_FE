@@ -3,6 +3,7 @@ import { useForm, Controller } from "react-hook-form";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import "../styles/datepicker-custom.css";
+import { useNavigate } from "react-router-dom";
 
 interface FormData {
   roomName: string;
@@ -14,6 +15,8 @@ interface FormData {
 }
 
 const CreateRoom = () => {
+  const navigate = useNavigate();
+
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [emails, setEmails] = useState<string[]>([]);
   const [currentEmail, setCurrentEmail] = useState<string>("");
@@ -348,7 +351,7 @@ const CreateRoom = () => {
                               <button
                                 type="button"
                                 onClick={() => removeFile(index)}
-                                className="text-red-500 hover:text-red-700"
+                                className="text-red-500 hover:text-red-700 cursor-pointer"
                               >
                                 <svg
                                   className="w-5 h-5"
@@ -392,59 +395,58 @@ const CreateRoom = () => {
                   </div>
                   <button
                     type="button"
+                    onClick={addEmail}
                     className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 font-medium transition-colors m-1 rounded-lg cursor-pointer"
                   >
-                    입장
+                    추가
                   </button>
                 </div>
-              </section>
 
-              <div className="flex flex-wrap gap-2 mt-2">
-                {emails.map((email, index) => (
-                  <div
-                    key={index}
-                    className="flex items-center bg-gray-100 rounded-full px-3 py-1"
-                  >
-                    <span className="text-xs mr-2">{email}</span>
-                    <button
-                      type="button"
-                      onClick={() => removeEmail(email)}
-                      className="text-gray-500 hover:text-gray-700"
-                    >
-                      <svg
-                        width="12"
-                        height="12"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      >
-                        <line x1="18" y1="6" x2="6" y2="18"></line>
-                        <line x1="6" y1="6" x2="18" y2="18"></line>
-                      </svg>
-                    </button>
-                  </div>
-                ))}
                 {emails.length > 0 && (
-                  <div className="flex items-center text-gray-400 text-xs">
-                    <span>총 {emails.length}명</span>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {emails.map((email, index) => (
+                      <div
+                        key={index}
+                        className="bg-blue-50 text-blue-700 px-3 py-1 rounded-full flex items-center gap-2 text-sm border border-blue-100"
+                      >
+                        <span>{email}</span>
+                        <button
+                          type="button"
+                          onClick={() => removeEmail(email)}
+                          className="text-blue-500 hover:text-blue-700"
+                        >
+                          <svg
+                            className="w-4 h-4"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth="2"
+                              d="M6 18L18 6M6 6l12 12"
+                            />
+                          </svg>
+                        </button>
+                      </div>
+                    ))}
                   </div>
                 )}
-              </div>
+              </section>
             </div>
 
             <div className="flex justify-between">
               <button
                 type="button"
-                className="px-6 py-2 border border-gray-300 rounded"
+                className="px-6 py-2 border border-gray-300 rounded cursor-pointer"
+                onClick={() => navigate("/")}
               >
                 취소
               </button>
               <button
                 type="submit"
-                className="px-6 py-2 bg-green-600 text-white rounded"
+                className="px-6 py-2 bg-green-600 text-white rounded cursor-pointer"
               >
                 <div className="flex items-center">
                   <svg
