@@ -46,6 +46,7 @@ const CreateRoom = () => {
       emails,
       files: uploadedFiles,
     });
+    navigate("/room/3");
     // API 호출 코드 추가
   };
 
@@ -460,7 +461,7 @@ const CreateRoom = () => {
                     strokeLinejoin="round"
                     className="mr-2"
                   >
-                    <path d="M12 5v14M5 12h14"></path>
+                    <path d="M12 5v14M5 12h14" />
                   </svg>
                   발표방 생성
                 </div>
