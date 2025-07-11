@@ -27,6 +27,8 @@ const CreateRoom = () => {
     register,
     handleSubmit,
     control,
+    setValue,
+    watch,
     formState: { errors },
   } = useForm<FormData>({
     defaultValues: {
@@ -249,14 +251,49 @@ const CreateRoom = () => {
                     <label className="block text-sm font-medium mb-2">
                       참여인원 설정 <span className="text-red-500">*</span>
                     </label>
-                    <div className="flex items-center">
-                      <input
-                        type="number"
-                        {...register("maxParticipants", { min: 1, max: 50 })}
-                        className="border border-gray-200 rounded p-2 w-24"
-                      />
-                      <span className="mx-2">/</span>
-                      <span>50명</span>
+                    <div className="flex items-center gap-2">
+                      <div className="flex items-center border border-gray-200 rounded-lg w-[30%]">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const currentValue = watch("maxParticipants");
+                            if (currentValue > 1) {
+                              setValue("maxParticipants", currentValue - 1);
+                            }
+                          }}
+                          className="flex-none w-8 h-8 rounded-full text-center flex items-center justify-center text-gray-500 cursor-pointer"
+                        >
+                          <span className="text-lg">-</span>
+                        </button>
+                        <div className="flex-grow">
+                          <input
+                            type="number"
+                            {...register("maxParticipants", {
+                              min: 1,
+                              max: 50,
+                            })}
+                            className="w-full text-center border-none focus:outline-none py-2 "
+                            min="1"
+                            max="50"
+                          />
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const currentValue = watch("maxParticipants");
+                            if (currentValue < 50) {
+                              setValue("maxParticipants", currentValue + 1);
+                            }
+                          }}
+                          className="flex-none w-8 h-8 rounded-full text-center flex items-center justify-center text-gray-500 hover:text-gray-700 cursor-pointer"
+                        >
+                          <span className="text-lg">+</span>
+                        </button>
+                      </div>
+                      <div className="text-sm">
+                        <span>/</span>
+                        <span className="ml-1">50명 (최대인원)</span>
+                      </div>
                     </div>
                   </div>
 
