@@ -15,6 +15,7 @@ const MainLayout = () => {
             Join.in
           </Link>
         )}
+
         {location.pathname.startsWith("/room/") ? (
           <div className="flex items-center gap-2">
             <span className="mr-2 text-sm">참가자: 41 / 50</span>
@@ -27,12 +28,22 @@ const MainLayout = () => {
             </Link>
           </div>
         ) : (
-          <Link
-            to="/login"
-            className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-1 rounded-full text-sm font-medium transition-colors"
-          >
-            로그인 / 회원가입
-          </Link>
+          <div className="flex items-center gap-2">
+            {location.pathname === "/mypage" && (
+              <Link
+                to="/room/13"
+                className="bg-blue-500 hover:bg-blue-600 text-white px-2 py-2 rounded-md text-sm font-medium transition-colors"
+              >
+                초대 코드로 입장
+              </Link>
+            )}
+            <Link
+              to="/login"
+              className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-2 py-2 rounded-md text-sm font-medium transition-colors"
+            >
+              로그인 / 회원가입
+            </Link>
+          </div>
         )}
       </header>
 
