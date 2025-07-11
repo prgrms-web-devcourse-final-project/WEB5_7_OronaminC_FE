@@ -2,7 +2,7 @@ import { Link, Outlet, useLocation } from "react-router-dom";
 
 const MainLayout = () => {
   const location = useLocation();
-  console.log(location);
+  console.log(location.pathname.endsWith("/report"));
   return (
     <div className="min-h-screen flex flex-col">
       <header className="py-4 px-6 border-b border-gray-100 flex justify-between items-center">
@@ -16,7 +16,8 @@ const MainLayout = () => {
           </Link>
         )}
 
-        {location.pathname.startsWith("/room/") ? (
+        {!location.pathname.endsWith("/report") &&
+        location.pathname.startsWith("/room/") ? (
           <div className="flex items-center gap-2">
             <span className="mr-2 text-sm">참가자: 41 / 50</span>
 
