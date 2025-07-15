@@ -4,7 +4,6 @@ import LoadingFallback from '../components/LoadingFallback';
 import MainLayout from '../layouts/MainLayout';
 
 const Home = lazy(() => import('../pages/Home'));
-const Login = lazy(() => import('../pages/Login'));
 const NotFound = lazy(() => import('../pages/NotFound'));
 const CreateRoom = lazy(() => import('../pages/CreateRoom'));
 const PresentationRoom = lazy(() => import('../pages/PresentationRoom'));
@@ -23,14 +22,7 @@ export const routes: RouteObject[] = [
           </Suspense>
         ),
       },
-      {
-        path: '/login',
-        element: (
-          <Suspense fallback={<LoadingFallback />}>
-            <Login />
-          </Suspense>
-        ),
-      },
+
       {
         path: '/create-room',
         element: (
