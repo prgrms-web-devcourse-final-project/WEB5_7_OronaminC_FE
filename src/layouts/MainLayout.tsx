@@ -1,8 +1,10 @@
 import { Link, Outlet, useLocation } from "react-router-dom";
+import { useLoginModal } from "../hooks/useLoginModal";
+import LoginModal from "../components/LoginModal";
 
 const MainLayout = () => {
   const location = useLocation();
-  console.log(location.pathname.endsWith("/report"));
+  const { isModalOpen, roomCode, openModal, closeModal } = useLoginModal();
   return (
     <div className="min-h-screen flex flex-col">
       <header className="py-4 px-6 border-b border-gray-100 flex justify-between items-center">
@@ -38,12 +40,12 @@ const MainLayout = () => {
                 초대 코드로 입장
               </Link>
             )}
-            <Link
-              to="/login"
-              className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-2 py-2 rounded-md text-sm font-medium transition-colors"
+            <button
+              onClick={() => openModal("user")}
+              className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-2 py-2 rounded-md text-sm font-medium transition-colors cursor-pointer"
             >
-              로그인 / 회원가입
-            </Link>
+              회원 로그인
+            </button>
           </div>
         )}
       </header>
@@ -55,6 +57,13 @@ const MainLayout = () => {
       <footer className="py-4 text-center text-xs text-gray-400">
         © 2025 OronaminC. 실시간 발표 질의응답 서비스
       </footer>
+
+      {/* 로그인 모달 */}
+      <LoginModal
+        isOpen={isModalOpen}
+        onClose={closeModal}
+        initialRoomCode={roomCode}
+      />
     </div>
   );
 };
