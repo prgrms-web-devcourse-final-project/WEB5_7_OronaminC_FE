@@ -4,6 +4,7 @@ import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import "../styles/datepicker-custom.css";
 import { useNavigate } from "react-router-dom";
+import { useMutation } from "@tanstack/react-query";
 
 interface FormData {
   roomName: string;
@@ -12,6 +13,25 @@ interface FormData {
   maxParticipants: number;
   emails: string[];
   presentationFiles: FileList | null;
+}
+
+interface CreateRoomRequest {
+  title: string;
+  description: string;
+  endDate: string;
+  participantLimit: number;
+  teamEmail: string[];
+}
+
+interface PresignedUrlRequest {
+  fileName: string;
+  fileType: string;
+  fileSize: number;
+}
+
+interface PresignedUrlResponse {
+  presignedUrl: string;
+  fileKey: string;
 }
 
 const CreateRoom = () => {
@@ -41,15 +61,108 @@ const CreateRoom = () => {
     },
   });
 
-  const onSubmit = (data: FormData) => {
-    console.log({
-      ...data,
-      presentationDate: selectedDate,
-      emails,
-      files: uploadedFiles,
+  // 발표방 생성 mutation
+  const createRoomMutation = useMutation({
+    mutationFn: async (requestData: CreateRoomRequest) => {
+      const response = await fetch("/api/rooms", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(requestData),
+      });
+
+      if (!response.ok) {
+        throw new Error("발표방 생성에 실패했습니다");
+      }
+
+      return await response.json();
+    },
+  });
+
+  // Presigned URL 요청 mutation
+  const getPresignedUrlMutation = useMutation({
+    mutationFn: async (fileData: PresignedUrlRequest) => {
+      const response = await fetch("/api/documents/presigned-url/upload", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(fileData),
+      });
+
+      if (!response.ok) {
+        throw new Error("파일 업로드 URL 생성에 실패했습니다");
+      }
+
+      return await response.json() as PresignedUrlResponse;
+    },
+  });
+
+  // 실제 파일 업로드 함수
+  const uploadFileToS3 = async (presignedUrl: string, file: File) => {
+    const response = await fetch(presignedUrl, {
+      method: "PUT",
+      body: file,
+      headers: {
+        "Content-Type": file.type,
+      },
     });
-    navigate("/room/3");
-    // API 호출 코드 추가
+
+    if (!response.ok) {
+      throw new Error("파일 업로드에 실패했습니다");
+    }
+
+    return true;
+  };
+
+  // 날짜를 yyyy-MM-dd 형식으로 포맷팅하는 함수
+  const formatDate = (date: Date): string => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  // 폼 제출 핸들러
+  const onSubmit = async (data: FormData) => {
+    try {
+      // 1. 파일 업로드 처리
+      if (uploadedFiles.length > 0) {
+        for (const file of uploadedFiles) {
+          // Presigned URL 요청
+          const presignedUrlData = await getPresignedUrlMutation.mutateAsync({
+            fileName: file.name,
+            fileType: file.type,
+            fileSize: file.size
+          });
+          
+          // S3에 파일 업로드
+          await uploadFileToS3(presignedUrlData.presignedUrl, file);
+          
+          console.log(`파일 업로드 완료: ${file.name}, 키: ${presignedUrlData.fileKey}`);
+        }
+      }
+      
+      // 2. 발표방 생성 API 호출
+      const formattedDate = formatDate(selectedDate);
+      
+      const roomData: CreateRoomRequest = {
+        title: data.roomName,
+        description: data.roomDescription,
+        endDate: formattedDate,
+        participantLimit: data.maxParticipants,
+        teamEmail: emails,
+      };
+      
+      const result = await createRoomMutation.mutateAsync(roomData);
+      
+      // 3. 성공 시 생성된 방으로 이동
+      navigate(`/room/${result.roomId}`);
+    } catch (error) {
+      console.error("발표방 생성 중 오류:", error);
+      alert("발표방 생성에 실패했습니다. 다시 시도해 주세요.");
+    }
   };
 
   // 파일 드래그 이벤트 핸들러
@@ -484,23 +597,48 @@ const CreateRoom = () => {
               </button>
               <button
                 type="submit"
-                className="px-6 py-2 bg-green-600 text-white rounded cursor-pointer"
+                disabled={createRoomMutation.isPending || getPresignedUrlMutation.isPending}
+                className={`px-6 py-2 ${createRoomMutation.isPending || getPresignedUrlMutation.isPending ? "bg-green-400" : "bg-green-600"} text-white rounded cursor-pointer`}
               >
                 <div className="flex items-center">
-                  <svg
-                    width="18"
-                    height="18"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    className="mr-2"
-                  >
-                    <path d="M12 5v14M5 12h14" />
-                  </svg>
-                  발표방 생성
+                  {createRoomMutation.isPending || getPresignedUrlMutation.isPending ? (
+                    <>
+                      <svg className="animate-spin h-5 w-5 mr-2 text-white" viewBox="0 0 24 24">
+                        <circle
+                          className="opacity-25"
+                          cx="12"
+                          cy="12"
+                          r="10"
+                          stroke="currentColor"
+                          strokeWidth="4"
+                          fill="none"
+                        />
+                        <path
+                          className="opacity-75"
+                          fill="currentColor"
+                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                        />
+                      </svg>
+                      처리 중...
+                    </>
+                  ) : (
+                    <>
+                      <svg
+                        width="18"
+                        height="18"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        className="mr-2"
+                      >
+                        <path d="M12 5v14M5 12h14" />
+                      </svg>
+                      발표방 생성
+                    </>
+                  )}
                 </div>
               </button>
             </div>
