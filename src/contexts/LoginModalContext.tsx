@@ -9,9 +9,11 @@ type LoginModalProviderProps = {
 const LoginModalProvider = ({ children }: LoginModalProviderProps) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [roomCode, setRoomCode] = useState('');
+  const [type, setType] = useState<'user' | 'guest' | undefined>(undefined);
 
-  const openModal = (code: string = '') => {
+  const openModal = (code: string = '', modalType?: 'user' | 'guest') => {
     setRoomCode(code);
+    setType(modalType);
     setIsModalOpen(true);
   };
 
@@ -20,7 +22,7 @@ const LoginModalProvider = ({ children }: LoginModalProviderProps) => {
   };
 
   return (
-    <LoginModalContext.Provider value={{ isModalOpen, roomCode, openModal, closeModal }}>
+    <LoginModalContext.Provider value={{ isModalOpen, roomCode, type, openModal, closeModal }}>
       {children}
     </LoginModalContext.Provider>
   );

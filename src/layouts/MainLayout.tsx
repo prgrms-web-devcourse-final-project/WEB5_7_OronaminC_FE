@@ -4,7 +4,9 @@ import LoginModal from "../components/LoginModal";
 
 const MainLayout = () => {
   const location = useLocation();
-  const { isModalOpen, roomCode, openModal, closeModal } = useLoginModal();
+  const { isModalOpen, roomCode, type, openModal, closeModal } =
+    useLoginModal();
+
   return (
     <div className="min-h-screen flex flex-col">
       <header className="py-4 px-6 border-b border-gray-100 flex justify-between items-center">
@@ -41,7 +43,7 @@ const MainLayout = () => {
               </Link>
             )}
             <button
-              onClick={() => openModal("user")}
+              onClick={() => openModal("", "user")}
               className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-2 py-2 rounded-md text-sm font-medium transition-colors cursor-pointer"
             >
               회원 로그인
@@ -58,11 +60,11 @@ const MainLayout = () => {
         © 2025 OronaminC. 실시간 발표 질의응답 서비스
       </footer>
 
-      {/* 로그인 모달 */}
       <LoginModal
         isOpen={isModalOpen}
         onClose={closeModal}
         initialRoomCode={roomCode}
+        type={type}
       />
     </div>
   );
