@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { useMutation } from "@tanstack/react-query";
 
 interface LoginModalProps {
   isOpen: boolean;
@@ -20,11 +21,36 @@ const LoginModal = ({
   const [roomCode, setRoomCode] = useState(initialRoomCode);
   const [showTooltip, setShowTooltip] = useState(false);
 
+  const guestLoginMutation = useMutation({
+    mutationFn: async ({ nickname }: { nickname: string }) => {
+      const response = await fetch("/api/auth/guest", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ nickname }),
+      });
+
+      if (!response.ok) {
+        throw new Error("게스트 로그인에 실패했습니다.");
+      }
+
+      return await response.json();
+    },
+    onSuccess: (data) => {
+      console.log("data", data);
+      navigate(`/room/${roomCode}`);
+      onClose();
+    },
+    onError: (error) => {
+      console.error("게스트 로그인 오류:", error);
+      alert("게스트 로그인에 실패했습니다. 다시 시도해 주세요.");
+    },
+  });
+
   useEffect(() => {
     setRoomCode(initialRoomCode);
   }, [initialRoomCode]);
-
-  console.log(type);
 
   if (!isOpen) return null;
 
@@ -109,8 +135,6 @@ const LoginModal = ({
             </div>
           ) : (
             <>
-              <div className="border-t border-gray-200 mt-6 pt-6" />
-
               <div className="text-center mb-6">
                 <h2 className="text-2xl font-bold">비회원으로 시작</h2>
                 <p className="text-gray-600 text-sm mt-2">
@@ -142,18 +166,27 @@ const LoginModal = ({
                   <button
                     type="button"
                     className="w-full py-3 px-4 bg-gray-700 hover:bg-gray-800 text-white font-medium rounded-lg mt-6 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-gray-700"
-                    disabled={nickname.trim() === "" || roomCode.trim() === ""}
+                    disabled={
+                      nickname.trim() === "" ||
+                      roomCode.trim() === "" ||
+                      guestLoginMutation.isPending
+                    }
                     onClick={() => {
+                      if (nickname.trim().length > 7) {
+                        alert("닉네임은 6자 이하로 입력해주세요");
+                        return;
+                      }
+
                       if (nickname.trim() === "") {
                         alert("닉네임을 입력해주세요");
                         return;
                       }
-                      // 여기서 roomCode를 사용하여 해당 방으로 이동
-                      navigate(`/room/${roomCode}`);
-                      onClose(); // 모달 닫기
+                      guestLoginMutation.mutate({ nickname });
                     }}
                   >
-                    비회원으로 입장하기
+                    {guestLoginMutation.isPending
+                      ? "처리 중..."
+                      : "비회원으로 입장하기"}
                   </button>
                 </form>
               </div>
