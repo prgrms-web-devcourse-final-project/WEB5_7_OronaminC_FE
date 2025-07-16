@@ -122,6 +122,9 @@ const LoginModal = ({
                 <button
                   type="button"
                   className="w-full py-3 px-4 bg-[#FEE500] hover:bg-[#FFDE00] text-[#3C1E1E] font-medium rounded-md flex items-center justify-center gap-2 transition-all duration-200 shadow hover:shadow-md relative overflow-hidden hover:opacity-90 cursor-pointer"
+                  onClick={() => {
+                    window.location.href = "/oauth2/authorization/kakao";
+                  }}
                 >
                   <img
                     src="/kakao.svg"

@@ -9,6 +9,7 @@ const CreateRoom = lazy(() => import('../pages/CreateRoom'));
 const PresentationRoom = lazy(() => import('../pages/PresentationRoom'));
 const MyPage = lazy(() => import('../pages/MyPage'));
 const PresentationReport = lazy(() => import('../pages/PresentationReport'));
+const OAuthCallback = lazy(() => import('../pages/OAuthCallback'));
 
 export const routes: RouteObject[] = [
   {
@@ -52,6 +53,14 @@ export const routes: RouteObject[] = [
         element: (
           <Suspense fallback={<LoadingFallback />}>
             <MyPage />
+          </Suspense>
+        ),
+      },
+      {
+        path: '/oauth/callback',
+        element: (
+          <Suspense fallback={<LoadingFallback />}>
+            <OAuthCallback />
           </Suspense>
         ),
       },
