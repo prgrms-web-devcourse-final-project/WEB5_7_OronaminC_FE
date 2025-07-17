@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { useMutation } from "@tanstack/react-query";
+import { useMutate } from "../hooks/useFetch";
 
 interface LoginModalProps {
   isOpen: boolean;
@@ -21,32 +21,21 @@ const LoginModal = ({
   const [roomCode, setRoomCode] = useState(initialRoomCode);
   const [showTooltip, setShowTooltip] = useState(false);
 
-  const guestLoginMutation = useMutation({
-    mutationFn: async ({ nickname }: { nickname: string }) => {
-      const response = await fetch("/api/auth/guest", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ nickname }),
-      });
-
-      if (!response.ok) {
-        throw new Error("게스트 로그인에 실패했습니다.");
-      }
-
-      return await response.json();
-    },
-    onSuccess: (data) => {
-      console.log("data", data);
-      navigate(`/room/${roomCode}`);
-      onClose();
-    },
-    onError: (error) => {
-      console.error("게스트 로그인 오류:", error);
-      alert("게스트 로그인에 실패했습니다. 다시 시도해 주세요.");
-    },
-  });
+  const guestLoginMutation = useMutate(
+    "/api/auth/guest",
+    "POST",
+    {
+      onSuccess: (data) => {
+        console.log("data", data);
+        navigate(`/room/${roomCode}`);
+        onClose();
+      },
+      onError: (error) => {
+        console.error("게스트 로그인 오류:", error);
+        alert("게스트 로그인에 실패했습니다. 다시 시도해 주세요.");
+      },
+    }
+  );
 
   useEffect(() => {
     setRoomCode(initialRoomCode);
