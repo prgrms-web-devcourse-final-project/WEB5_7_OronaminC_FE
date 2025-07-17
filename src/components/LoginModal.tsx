@@ -21,21 +21,21 @@ const LoginModal = ({
   const [roomCode, setRoomCode] = useState(initialRoomCode);
   const [showTooltip, setShowTooltip] = useState(false);
 
-  const guestLoginMutation = useMutate(
-    "/api/auth/guest",
-    "POST",
-    {
-      onSuccess: (data) => {
-        console.log("data", data);
-        navigate(`/room/${roomCode}`);
-        onClose();
-      },
-      onError: (error) => {
-        console.error("게스트 로그인 오류:", error);
-        alert("게스트 로그인에 실패했습니다. 다시 시도해 주세요.");
-      },
-    }
-  );
+  const guestLoginMutation = useMutate("/api/auth/guest", "POST", {
+    onSuccess: (data) => {
+      console.log("data", data);
+      const userData = data as { id: string };
+      sessionStorage.setItem("userId", userData.id);
+      sessionStorage.setItem("userNickname", nickname);
+      sessionStorage.setItem("isLoggedIn", "true");
+      navigate(`/room/${roomCode}`);
+      onClose();
+    },
+    onError: (error) => {
+      console.error("게스트 로그인 오류:", error);
+      alert("게스트 로그인에 실패했습니다. 다시 시도해 주세요.");
+    },
+  });
 
   useEffect(() => {
     setRoomCode(initialRoomCode);

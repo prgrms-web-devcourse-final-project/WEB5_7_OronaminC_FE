@@ -1,11 +1,35 @@
-import { Link, Outlet, useLocation } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useLoginModal } from "../hooks/useLoginModal";
 import LoginModal from "../components/LoginModal";
 
 const MainLayout = () => {
   const location = useLocation();
+  const navigate = useNavigate();
   const { isModalOpen, roomCode, type, openModal, closeModal } =
     useLoginModal();
+
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [userNickname, setUserNickname] = useState("");
+
+  useEffect(() => {
+    const loginStatus = sessionStorage.getItem("isLoggedIn");
+    const nickname = sessionStorage.getItem("userNickname");
+
+    if (loginStatus === "true") {
+      setIsLoggedIn(true);
+      if (nickname) setUserNickname(nickname);
+    }
+  }, [location.pathname]);
+
+  const handleLogout = () => {
+    sessionStorage.removeItem("userId");
+    sessionStorage.removeItem("userNickname");
+    sessionStorage.removeItem("isLoggedIn");
+    setIsLoggedIn(false);
+    setUserNickname("");
+    navigate("/");
+  };
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -42,12 +66,26 @@ const MainLayout = () => {
                 초대 코드로 입장
               </Link>
             )}
-            <button
-              onClick={() => openModal("", "user")}
-              className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-2 py-2 rounded-md text-sm font-medium transition-colors cursor-pointer"
-            >
-              회원 로그인
-            </button>
+            {isLoggedIn ? (
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-gray-600">
+                  {userNickname || "사용자"} 님
+                </span>
+                <button
+                  onClick={handleLogout}
+                  className="bg-red-100 hover:bg-red-200 text-red-700 px-2 py-2 rounded-md text-sm font-medium transition-colors cursor-pointer"
+                >
+                  로그아웃
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => openModal("", "user")}
+                className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-2 py-2 rounded-md text-sm font-medium transition-colors cursor-pointer"
+              >
+                회원 로그인
+              </button>
+            )}
           </div>
         )}
       </header>
