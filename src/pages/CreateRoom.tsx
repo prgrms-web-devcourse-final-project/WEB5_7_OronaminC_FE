@@ -20,6 +20,7 @@ interface CreateRoomRequest {
   description: string;
   endDate: string;
   participantLimit: number;
+  documentUrl: string;
   teamEmail: string[];
 }
 
@@ -42,6 +43,7 @@ const CreateRoom = () => {
   const [currentEmail, setCurrentEmail] = useState<string>("");
   const [dragActive, setDragActive] = useState<boolean>(false);
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
+  const [documentUrl, setDocumentUrl] = useState<string>("");
 
   const {
     register,
@@ -132,30 +134,7 @@ const CreateRoom = () => {
   // 폼 제출 핸들러
   const onSubmit = async (data: FormData) => {
     try {
-      // 1. 파일 업로드 처리
-      if (uploadedFiles.length > 0) {
-        for (const file of uploadedFiles) {
-          try {
-            // Presigned URL 요청
-            const presignedUrlData = await getPresignedUrlMutation.mutateAsync({
-              fileName: file.name,
-              fileType: file.type,
-              fileSize: file.size
-            });
-            
-            // S3에 파일 업로드
-            await uploadFileToS3(presignedUrlData.presignedUrl, file);
-            
-            console.log(`파일 업로드 완료: ${file.name}, 키: ${presignedUrlData.objectKey}`);
-          } catch (fileError: any) {
-            console.error(`파일 업로드 실패 (${file.name}):`, fileError);
-            alert(`파일 업로드 실패: ${file.name}\n${fileError.message}`);
-            return;
-          }
-        }
-      }
-      
-      // 2. 발표방 생성 API 호출
+      // 발표방 생성 API 호출
       const formattedDate = formatDate(selectedDate);
       
       const roomData: CreateRoomRequest = {
@@ -163,16 +142,18 @@ const CreateRoom = () => {
         description: data.roomDescription,
         endDate: formattedDate,
         participantLimit: data.maxParticipants,
+        documentUrl: documentUrl || "url", // 업로드된 URL 또는 기본값
         teamEmail: emails,
       };
       
       const result = await createRoomMutation.mutateAsync(roomData);
       
-      // 3. 성공 시 생성된 방으로 이동
+      // 성공 시 생성된 방으로 이동
       navigate(`/room/${result.roomId}`);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("발표방 생성 중 오류:", error);
-      alert(`발표방 생성에 실패했습니다.\n${error.message || '다시 시도해 주세요.'}`);
+      const errorMessage = error instanceof Error ? error.message : '다시 시도해 주세요.';
+      alert(`발표방 생성에 실패했습니다.\n${errorMessage}`);
     }
   };
 
@@ -208,8 +189,8 @@ const CreateRoom = () => {
     }
   };
 
-  // 파일 처리 함수
-  const handleFiles = (files: FileList) => {
+  // 파일 처리 함수 - 파일 선택 시점에서 바로 업로드
+  const handleFiles = async (files: FileList) => {
     const fileArray = Array.from(files);
     const validFiles = fileArray.filter(
       (file) =>
@@ -221,6 +202,7 @@ const CreateRoom = () => {
 
     if (validFiles.length !== fileArray.length) {
       alert("PPT, PDF 파일만 업로드 가능합니다.");
+      return;
     }
 
     if (validFiles.some((file) => file.size > 200 * 1024 * 1024)) {
@@ -228,12 +210,41 @@ const CreateRoom = () => {
       return;
     }
 
-    setUploadedFiles((prevFiles) => [...prevFiles, ...validFiles]);
+    // 파일 업로드 처리
+    if (validFiles.length > 0) {
+      try {
+        const file = validFiles[0]; // 첫 번째 파일만 처리
+        
+        // Presigned URL 요청
+        const presignedUrlData = await getPresignedUrlMutation.mutateAsync({
+          fileName: file.name,
+          fileType: file.type,
+          fileSize: file.size
+        });
+        
+        // S3에 파일 업로드
+        await uploadFileToS3(presignedUrlData.presignedUrl, file);
+        
+        // 업로드된 파일 URL 저장 (presignedUrl에서 쿼리 파라미터 제거)
+        const uploadedUrl = presignedUrlData.presignedUrl.split('?')[0];
+        setDocumentUrl(uploadedUrl);
+        
+        console.log(`파일 업로드 완료: ${file.name}, URL: ${uploadedUrl}`);
+        
+        // UI에 표시할 파일 목록 업데이트
+        setUploadedFiles([file]);
+        
+      } catch (fileError: any) {
+        console.error(`파일 업로드 실패:`, fileError);
+        alert(`파일 업로드 실패: ${fileError.message}`);
+      }
+    }
   };
 
   // 파일 삭제
   const removeFile = (index: number) => {
     setUploadedFiles((prevFiles) => prevFiles.filter((_, i) => i !== index));
+    setDocumentUrl(""); // 파일 삭제 시 URL도 초기화
   };
 
   const addEmail = () => {
