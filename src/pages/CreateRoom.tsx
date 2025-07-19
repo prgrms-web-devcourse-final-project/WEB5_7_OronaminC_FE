@@ -31,7 +31,7 @@ interface PresignedUrlRequest {
 
 interface PresignedUrlResponse {
   presignedUrl: string;
-  fileKey: string;
+  objectKey: string;
 }
 
 const CreateRoom = () => {
@@ -83,13 +83,18 @@ const CreateRoom = () => {
   // Presigned URL 요청 mutation
   const getPresignedUrlMutation = useMutation({
     mutationFn: async (fileData: PresignedUrlRequest) => {
-      const response = await fetch("/api/documents/presigned-url/upload", {
+      const response = await fetch("/api/documents/presigned-url", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify(fileData),
       });
+
+      if (response.status === 400) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "파일 형식 오류 또는 파일 최대 크기 초과");
+      }
 
       if (!response.ok) {
         throw new Error("파일 업로드 URL 생성에 실패했습니다");
@@ -130,17 +135,23 @@ const CreateRoom = () => {
       // 1. 파일 업로드 처리
       if (uploadedFiles.length > 0) {
         for (const file of uploadedFiles) {
-          // Presigned URL 요청
-          const presignedUrlData = await getPresignedUrlMutation.mutateAsync({
-            fileName: file.name,
-            fileType: file.type,
-            fileSize: file.size
-          });
-          
-          // S3에 파일 업로드
-          await uploadFileToS3(presignedUrlData.presignedUrl, file);
-          
-          console.log(`파일 업로드 완료: ${file.name}, 키: ${presignedUrlData.fileKey}`);
+          try {
+            // Presigned URL 요청
+            const presignedUrlData = await getPresignedUrlMutation.mutateAsync({
+              fileName: file.name,
+              fileType: file.type,
+              fileSize: file.size
+            });
+            
+            // S3에 파일 업로드
+            await uploadFileToS3(presignedUrlData.presignedUrl, file);
+            
+            console.log(`파일 업로드 완료: ${file.name}, 키: ${presignedUrlData.objectKey}`);
+          } catch (fileError: any) {
+            console.error(`파일 업로드 실패 (${file.name}):`, fileError);
+            alert(`파일 업로드 실패: ${file.name}\n${fileError.message}`);
+            return;
+          }
         }
       }
       
@@ -159,9 +170,9 @@ const CreateRoom = () => {
       
       // 3. 성공 시 생성된 방으로 이동
       navigate(`/room/${result.roomId}`);
-    } catch (error) {
+    } catch (error: any) {
       console.error("발표방 생성 중 오류:", error);
-      alert("발표방 생성에 실패했습니다. 다시 시도해 주세요.");
+      alert(`발표방 생성에 실패했습니다.\n${error.message || '다시 시도해 주세요.'}`);
     }
   };
 
