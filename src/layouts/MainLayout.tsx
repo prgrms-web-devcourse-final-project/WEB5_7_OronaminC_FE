@@ -22,13 +22,27 @@ const MainLayout = () => {
     }
   }, [location.pathname]);
 
-  const handleLogout = () => {
-    sessionStorage.removeItem("userId");
-    sessionStorage.removeItem("userNickname");
-    sessionStorage.removeItem("isLoggedIn");
-    setIsLoggedIn(false);
-    setUserNickname("");
-    navigate("/");
+  const handleLogout = async () => {
+    try {
+      const response = await fetch("/api/auth/logout", {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (response.status === 204) {
+        sessionStorage.removeItem("userId");
+        sessionStorage.removeItem("userNickname");
+        sessionStorage.removeItem("isLoggedIn");
+        setIsLoggedIn(false);
+        setUserNickname("");
+        navigate("/");
+      }
+    } catch (error) {
+      console.log(error);
+    }
   };
 
   return (
