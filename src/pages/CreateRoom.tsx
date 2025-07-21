@@ -4,6 +4,7 @@ import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import "../styles/datepicker-custom.css";
 import { useNavigate } from "react-router-dom";
+import { useMutation } from "@tanstack/react-query";
 
 interface FormData {
   roomName: string;
@@ -14,6 +15,26 @@ interface FormData {
   presentationFiles: FileList | null;
 }
 
+interface CreateRoomRequest {
+  title: string;
+  description: string;
+  endDate: string;
+  participantLimit: number;
+  documentUrl: string;
+  teamEmail: string[];
+}
+
+interface PresignedUrlRequest {
+  fileName: string;
+  fileType: string;
+  fileSize: number;
+}
+
+interface PresignedUrlResponse {
+  presignedUrl: string;
+  objectKey: string;
+}
+
 const CreateRoom = () => {
   const navigate = useNavigate();
 
@@ -22,6 +43,7 @@ const CreateRoom = () => {
   const [currentEmail, setCurrentEmail] = useState<string>("");
   const [dragActive, setDragActive] = useState<boolean>(false);
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
+  const [documentUrl, setDocumentUrl] = useState<string>("");
 
   const {
     register,
@@ -41,15 +63,98 @@ const CreateRoom = () => {
     },
   });
 
-  const onSubmit = (data: FormData) => {
-    console.log({
-      ...data,
-      presentationDate: selectedDate,
-      emails,
-      files: uploadedFiles,
+  // 발표방 생성 mutation
+  const createRoomMutation = useMutation({
+    mutationFn: async (requestData: CreateRoomRequest) => {
+      const response = await fetch("/api/rooms", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(requestData),
+      });
+
+      if (!response.ok) {
+        throw new Error("발표방 생성에 실패했습니다");
+      }
+
+      return await response.json();
+    },
+  });
+
+  // Presigned URL 요청 mutation
+  const getPresignedUrlMutation = useMutation({
+    mutationFn: async (fileData: PresignedUrlRequest) => {
+      const response = await fetch("/api/documents/presigned-url", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(fileData),
+      });
+
+      if (response.status === 400) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "파일 형식 오류 또는 파일 최대 크기 초과");
+      }
+
+      if (!response.ok) {
+        throw new Error("파일 업로드 URL 생성에 실패했습니다");
+      }
+
+      return await response.json() as PresignedUrlResponse;
+    },
+  });
+
+  // 실제 파일 업로드 함수
+  const uploadFileToS3 = async (presignedUrl: string, file: File) => {
+    const response = await fetch(presignedUrl, {
+      method: "PUT",
+      body: file,
+      headers: {
+        "Content-Type": file.type,
+      },
     });
-    navigate("/room/3");
-    // API 호출 코드 추가
+
+    if (!response.ok) {
+      throw new Error("파일 업로드에 실패했습니다");
+    }
+
+    return true;
+  };
+
+  // 날짜를 yyyy-MM-dd 형식으로 포맷팅하는 함수
+  const formatDate = (date: Date): string => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  // 폼 제출 핸들러
+  const onSubmit = async (data: FormData) => {
+    try {
+      // 발표방 생성 API 호출
+      const formattedDate = formatDate(selectedDate);
+      
+      const roomData: CreateRoomRequest = {
+        title: data.roomName,
+        description: data.roomDescription,
+        endDate: formattedDate,
+        participantLimit: data.maxParticipants,
+        documentUrl: documentUrl || "url", // 업로드된 URL 또는 기본값
+        teamEmail: emails,
+      };
+      
+      const result = await createRoomMutation.mutateAsync(roomData);
+      
+      // 성공 시 생성된 방으로 이동
+      navigate(`/room/${result.roomId}`);
+    } catch (error: unknown) {
+      console.error("발표방 생성 중 오류:", error);
+      const errorMessage = error instanceof Error ? error.message : '다시 시도해 주세요.';
+      alert(`발표방 생성에 실패했습니다.\n${errorMessage}`);
+    }
   };
 
   // 파일 드래그 이벤트 핸들러
@@ -84,8 +189,8 @@ const CreateRoom = () => {
     }
   };
 
-  // 파일 처리 함수
-  const handleFiles = (files: FileList) => {
+  // 파일 처리 함수 - 파일 선택 시점에서 바로 업로드
+  const handleFiles = async (files: FileList) => {
     const fileArray = Array.from(files);
     const validFiles = fileArray.filter(
       (file) =>
@@ -97,6 +202,7 @@ const CreateRoom = () => {
 
     if (validFiles.length !== fileArray.length) {
       alert("PPT, PDF 파일만 업로드 가능합니다.");
+      return;
     }
 
     if (validFiles.some((file) => file.size > 200 * 1024 * 1024)) {
@@ -104,12 +210,41 @@ const CreateRoom = () => {
       return;
     }
 
-    setUploadedFiles((prevFiles) => [...prevFiles, ...validFiles]);
+    // 파일 업로드 처리
+    if (validFiles.length > 0) {
+      try {
+        const file = validFiles[0]; // 첫 번째 파일만 처리
+        
+        // Presigned URL 요청
+        const presignedUrlData = await getPresignedUrlMutation.mutateAsync({
+          fileName: file.name,
+          fileType: file.type,
+          fileSize: file.size
+        });
+        
+        // S3에 파일 업로드
+        await uploadFileToS3(presignedUrlData.presignedUrl, file);
+        
+        // 업로드된 파일 URL 저장 (presignedUrl에서 쿼리 파라미터 제거)
+        const uploadedUrl = presignedUrlData.presignedUrl.split('?')[0];
+        setDocumentUrl(uploadedUrl);
+        
+        console.log(`파일 업로드 완료: ${file.name}, URL: ${uploadedUrl}`);
+        
+        // UI에 표시할 파일 목록 업데이트
+        setUploadedFiles([file]);
+        
+      } catch (fileError: any) {
+        console.error(`파일 업로드 실패:`, fileError);
+        alert(`파일 업로드 실패: ${fileError.message}`);
+      }
+    }
   };
 
   // 파일 삭제
   const removeFile = (index: number) => {
     setUploadedFiles((prevFiles) => prevFiles.filter((_, i) => i !== index));
+    setDocumentUrl(""); // 파일 삭제 시 URL도 초기화
   };
 
   const addEmail = () => {
@@ -484,23 +619,48 @@ const CreateRoom = () => {
               </button>
               <button
                 type="submit"
-                className="px-6 py-2 bg-green-600 text-white rounded cursor-pointer"
+                disabled={createRoomMutation.isPending || getPresignedUrlMutation.isPending}
+                className={`px-6 py-2 ${createRoomMutation.isPending || getPresignedUrlMutation.isPending ? "bg-green-400" : "bg-green-600"} text-white rounded cursor-pointer`}
               >
                 <div className="flex items-center">
-                  <svg
-                    width="18"
-                    height="18"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    className="mr-2"
-                  >
-                    <path d="M12 5v14M5 12h14" />
-                  </svg>
-                  발표방 생성
+                  {createRoomMutation.isPending || getPresignedUrlMutation.isPending ? (
+                    <>
+                      <svg className="animate-spin h-5 w-5 mr-2 text-white" viewBox="0 0 24 24">
+                        <circle
+                          className="opacity-25"
+                          cx="12"
+                          cy="12"
+                          r="10"
+                          stroke="currentColor"
+                          strokeWidth="4"
+                          fill="none"
+                        />
+                        <path
+                          className="opacity-75"
+                          fill="currentColor"
+                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                        />
+                      </svg>
+                      처리 중...
+                    </>
+                  ) : (
+                    <>
+                      <svg
+                        width="18"
+                        height="18"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        className="mr-2"
+                      >
+                        <path d="M12 5v14M5 12h14" />
+                      </svg>
+                      발표방 생성
+                    </>
+                  )}
                 </div>
               </button>
             </div>

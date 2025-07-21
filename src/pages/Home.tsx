@@ -5,6 +5,8 @@ const Home = () => {
   const [roomCode, setRoomCode] = useState("");
   const { openModal } = useLoginModal();
 
+
+
   return (
     <div className="flex-1 flex flex-col items-center justify-center p-4 gap-20">
       <section className="text-center max-w-md">
@@ -27,7 +29,8 @@ const Home = () => {
           </div>
           <button
             type="button"
-            className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 font-medium transition-colors m-2 rounded-lg cursor-pointer"
+            className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 font-medium transition-colors m-2 rounded-lg cursor-pointer disabled:bg-gray-200 disabled:cursor-not-allowed"
+            disabled={!roomCode.trim()}
             onClick={() => roomCode.trim() && openModal(roomCode, "guest")}
           >
             입장

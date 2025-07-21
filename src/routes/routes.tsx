@@ -1,38 +1,44 @@
-import { lazy, Suspense } from 'react';
-import type { RouteObject } from 'react-router-dom';
-import LoadingFallback from '../components/LoadingFallback';
-import MainLayout from '../layouts/MainLayout';
+import { lazy, Suspense } from "react";
+import type { RouteObject } from "react-router-dom";
+import LoadingFallback from "../components/LoadingFallback";
+import ProtectedRoute from "../components/ProtectedRoute";
+import MainLayout from "../layouts/MainLayout";
 
-const Home = lazy(() => import('../pages/Home'));
-const NotFound = lazy(() => import('../pages/NotFound'));
-const CreateRoom = lazy(() => import('../pages/CreateRoom'));
-const PresentationRoom = lazy(() => import('../pages/PresentationRoom'));
-const MyPage = lazy(() => import('../pages/MyPage'));
-const PresentationReport = lazy(() => import('../pages/PresentationReport'));
+const Home = lazy(() => import("../pages/Home"));
+const NotFound = lazy(() => import("../pages/NotFound"));
+const CreateRoom = lazy(() => import("../pages/CreateRoom"));
+const PresentationRoom = lazy(() => import("../pages/PresentationRoom"));
+const MyPage = lazy(() => import("../pages/MyPage"));
+const PresentationReport = lazy(() => import("../pages/PresentationReport"));
+const OAuthCallback = lazy(() => import("../pages/OAuthCallback"));
 
 export const routes: RouteObject[] = [
   {
     element: <MainLayout />,
     children: [
       {
-        path: '/',
+        path: "/",
         element: (
           <Suspense fallback={<LoadingFallback />}>
-            <Home />
+            <ProtectedRoute requireAuth={false}>
+              <Home />
+            </ProtectedRoute>
           </Suspense>
         ),
       },
 
       {
-        path: '/create-room',
+        path: "/create-room",
         element: (
           <Suspense fallback={<LoadingFallback />}>
-            <CreateRoom />
+            <ProtectedRoute requireAuth={true}>
+              <CreateRoom />
+            </ProtectedRoute>
           </Suspense>
         ),
       },
       {
-        path: '/room/:roomId',
+        path: "/room/:roomId",
         element: (
           <Suspense fallback={<LoadingFallback />}>
             <PresentationRoom />
@@ -40,7 +46,7 @@ export const routes: RouteObject[] = [
         ),
       },
       {
-        path: '/room/:roomId/report',
+        path: "/room/:roomId/report",
         element: (
           <Suspense fallback={<LoadingFallback />}>
             <PresentationReport />
@@ -48,21 +54,39 @@ export const routes: RouteObject[] = [
         ),
       },
       {
-        path: '/mypage',
+        path: "/mypage",
         element: (
           <Suspense fallback={<LoadingFallback />}>
-            <MyPage />
+            <ProtectedRoute requireAuth={true}>
+              <MyPage />
+            </ProtectedRoute>
           </Suspense>
         ),
       },
       {
-        path: '*',
+        path: "/oauth2/authorization/kakao",
+        element: (
+          <Suspense fallback={<LoadingFallback />}>
+            <OAuthCallback />
+          </Suspense>
+        ),
+      },
+      {
+        path: "/login",
+        element: (
+          <Suspense fallback={<LoadingFallback />}>
+            <OAuthCallback />
+          </Suspense>
+        ),
+      },
+      {
+        path: "*",
         element: (
           <Suspense fallback={<LoadingFallback />}>
             <NotFound />
           </Suspense>
         ),
       },
-    ]
-  }
+    ],
+  },
 ];

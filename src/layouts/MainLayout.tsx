@@ -1,10 +1,46 @@
-import { Link, Outlet, useLocation } from "react-router-dom";
+import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useLoginModal } from "../hooks/useLoginModal";
+import { useAuth } from "../contexts/AuthContext";
 import LoginModal from "../components/LoginModal";
 
 const MainLayout = () => {
   const location = useLocation();
-  const { isModalOpen, roomCode, openModal, closeModal } = useLoginModal();
+  const navigate = useNavigate();
+  const { isModalOpen, roomCode, type, openModal, closeModal } =
+    useLoginModal();
+  const { user, guestUser, isAuthenticated, isGuest, logout } = useAuth();
+
+  const handleLogout = async () => {
+    try {
+      // 소셜 로그인 사용자인 경우 서버 로그아웃 요청
+      if (isAuthenticated) {
+        const response = await fetch("http://15.165.241.81:8080/api/auth/logout", {
+          method: "POST",
+          credentials: "include",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        });
+
+        if (response.status === 204) {
+          logout();
+          navigate("/");
+        }
+      } else {
+        // 게스트 사용자인 경우 클라이언트에서만 로그아웃
+        logout();
+        navigate("/");
+      }
+    } catch (error) {
+      console.log(error);
+      // 오류 발생 시에도 클라이언트 세션 정리
+      logout();
+      navigate("/");
+    }
+  };
+
+  console.log(isGuest, isAuthenticated);
+
   return (
     <div className="min-h-screen flex flex-col">
       <header className="py-4 px-6 border-b border-gray-100 flex justify-between items-center">
@@ -40,12 +76,26 @@ const MainLayout = () => {
                 초대 코드로 입장
               </Link>
             )}
-            <button
-              onClick={() => openModal("user")}
-              className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-2 py-2 rounded-md text-sm font-medium transition-colors cursor-pointer"
-            >
-              회원 로그인
-            </button>
+            {isAuthenticated || isGuest ? (
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-gray-600">
+                  {user?.nickname || guestUser?.nickname || "사용자"} 님
+                </span>
+                <button
+                  onClick={handleLogout}
+                  className="bg-red-100 hover:bg-red-200 text-red-700 px-2 py-2 rounded-md text-sm font-medium transition-colors cursor-pointer"
+                >
+                  로그아웃
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => openModal("", "user")}
+                className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-2 py-2 rounded-md text-sm font-medium transition-colors cursor-pointer"
+              >
+                회원 로그인
+              </button>
+            )}
           </div>
         )}
       </header>
@@ -58,11 +108,11 @@ const MainLayout = () => {
         © 2025 OronaminC. 실시간 발표 질의응답 서비스
       </footer>
 
-      {/* 로그인 모달 */}
       <LoginModal
         isOpen={isModalOpen}
         onClose={closeModal}
         initialRoomCode={roomCode}
+        type={type}
       />
     </div>
   );
