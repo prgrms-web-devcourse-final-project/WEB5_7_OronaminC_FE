@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useLoginModal } from "../hooks/useLoginModal";
+import { useAuth } from "../contexts/AuthContext";
 import LoginModal from "../components/LoginModal";
 
 const MainLayout = () => {
@@ -8,42 +8,38 @@ const MainLayout = () => {
   const navigate = useNavigate();
   const { isModalOpen, roomCode, type, openModal, closeModal } =
     useLoginModal();
-
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [userNickname, setUserNickname] = useState("");
-
-  useEffect(() => {
-    const loginStatus = sessionStorage.getItem("isLoggedIn");
-    const nickname = sessionStorage.getItem("userNickname");
-
-    if (loginStatus === "true") {
-      setIsLoggedIn(true);
-      if (nickname) setUserNickname(nickname);
-    }
-  }, [location.pathname]);
+  const { user, guestUser, isAuthenticated, isGuest, logout } = useAuth();
 
   const handleLogout = async () => {
     try {
-      const response = await fetch("/api/auth/logout", {
-        method: "POST",
-        credentials: "include",
-        headers: {
-          "Content-Type": "application/json",
-        },
-      });
+      // 소셜 로그인 사용자인 경우 서버 로그아웃 요청
+      if (isAuthenticated) {
+        const response = await fetch("http://15.165.241.81:8080/api/auth/logout", {
+          method: "POST",
+          credentials: "include",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        });
 
-      if (response.status === 204) {
-        sessionStorage.removeItem("userId");
-        sessionStorage.removeItem("userNickname");
-        sessionStorage.removeItem("isLoggedIn");
-        setIsLoggedIn(false);
-        setUserNickname("");
+        if (response.status === 204) {
+          logout();
+          navigate("/");
+        }
+      } else {
+        // 게스트 사용자인 경우 클라이언트에서만 로그아웃
+        logout();
         navigate("/");
       }
     } catch (error) {
       console.log(error);
+      // 오류 발생 시에도 클라이언트 세션 정리
+      logout();
+      navigate("/");
     }
   };
+
+  console.log(isGuest, isAuthenticated);
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -80,10 +76,10 @@ const MainLayout = () => {
                 초대 코드로 입장
               </Link>
             )}
-            {isLoggedIn ? (
+            {isAuthenticated || isGuest ? (
               <div className="flex items-center gap-2">
                 <span className="text-sm text-gray-600">
-                  {userNickname || "사용자"} 님
+                  {user?.nickname || guestUser?.nickname || "사용자"} 님
                 </span>
                 <button
                   onClick={handleLogout}

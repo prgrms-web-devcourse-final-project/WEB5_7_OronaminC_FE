@@ -1,74 +1,34 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { useMutate } from "../hooks/useFetch";
-
-interface KakaoLoginResponse {
-  token: string;
-}
-
-interface UserSession {
-  id: number;
-  name: string;
-  nickname: string;
-  role: string;
-}
+import { useAuth } from "../contexts/AuthContext";
 
 const OAuthCallback = () => {
   const navigate = useNavigate();
-
-  const getAuthorizationCode = () => {
-    const params = new URLSearchParams(window.location.search);
-    return params.get("code");
-  };
-
-
-
-  const loginMutation = useMutate<KakaoLoginResponse, { code: string }>(
-    "/api/auth/kakao/callback",
-    "POST",
-    {
-      onSuccess: async (data) => {
-        localStorage.setItem("authToken", data.token);
-        
-        // 세션 정보 가져오기
-        try {
-          const sessionData = await fetch("/api/auth/session", {
-            method: "GET",
-            credentials: "include",
-            headers: {
-              "Content-Type": "application/json",
-              "Authorization": `Bearer ${data.token}`,
-            },
-          });
-          
-          if (sessionData.ok) {
-            const userSession: UserSession = await sessionData.json();
-            localStorage.setItem("userSession", JSON.stringify(userSession));
-            console.log("사용자 세션 정보 저장 완료:", userSession);
-          } else {
-            console.error("세션 정보 가져오기 실패:", sessionData.status);
-          }
-        } catch (error) {
-          console.error("세션 정보 요청 오류:", error);
-        }
-        
-        navigate("/");
-      },
-      onError: (error) => {
-        console.error("로그인 오류:", error);
-        navigate("/");
-      },
-    }
-  );
+  const { checkAuth } = useAuth();
 
   useEffect(() => {
-    const code = getAuthorizationCode();
-    if (code) {
-      loginMutation.mutate({ code });
-    } else {
-      navigate("/");
-    }
-  }, [loginMutation, navigate]);
+    const handleOAuthCallback = async () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const hasError = urlParams.has("error");
+
+      if (hasError) {
+        alert("로그인에 실패했습니다. 다시 시도해주세요.");
+        navigate("/");
+      } else {
+        try {
+          await checkAuth();
+          navigate("/mypage");
+        } catch {
+          alert("로그인 처리 중 오류가 발생했습니다.");
+          navigate("/");
+        }
+      }
+    };
+
+    const timer = setTimeout(handleOAuthCallback, 500);
+
+    return () => clearTimeout(timer);
+  }, [navigate, checkAuth]);
 
   return (
     <div className="h-screen flex items-center justify-center">
