@@ -12,34 +12,31 @@ const MainLayout = () => {
 
   const handleLogout = async () => {
     try {
-      // 소셜 로그인 사용자인 경우 서버 로그아웃 요청
       if (isAuthenticated) {
-        const response = await fetch("http://15.165.241.81:8080/api/auth/logout", {
-          method: "POST",
-          credentials: "include",
-          headers: {
-            "Content-Type": "application/json",
-          },
-        });
+        const response = await fetch(
+          "http://15.165.241.81:8080/api/auth/logout",
+          {
+            method: "POST",
+            credentials: "include",
+            headers: {
+              "Content-Type": "application/json",
+            },
+          }
+        );
 
         if (response.status === 204) {
           logout();
           navigate("/");
         }
       } else {
-        // 게스트 사용자인 경우 클라이언트에서만 로그아웃
         logout();
         navigate("/");
       }
-    } catch (error) {
-      console.log(error);
-      // 오류 발생 시에도 클라이언트 세션 정리
+    } catch {
       logout();
       navigate("/");
     }
   };
-
-  console.log(isGuest, isAuthenticated);
 
   return (
     <div className="min-h-screen flex flex-col">

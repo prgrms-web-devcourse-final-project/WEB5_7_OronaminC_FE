@@ -17,7 +17,7 @@ const LoginModal = ({
   type,
 }: LoginModalProps) => {
   const navigate = useNavigate();
-  const { setGuestUser, checkAuth } = useAuth();
+  const { setGuestUser } = useAuth();
 
   const [nickname, setNickname] = useState("");
   const [roomCode, setRoomCode] = useState(initialRoomCode);
@@ -119,34 +119,8 @@ const LoginModal = ({
                   type="button"
                   className="w-full py-3 px-4 bg-[#FEE500] hover:bg-[#FFDE00] text-[#3C1E1E] font-medium rounded-md flex items-center justify-center gap-2 transition-all duration-200 shadow hover:shadow-md relative overflow-hidden hover:opacity-90 cursor-pointer"
                   onClick={() => {
-                    // 새 창으로 OAuth 처리
-                    const oauthWindow = window.open(
-                      "http://15.165.241.81:8080/oauth2/authorization/kakao",
-                      "kakaoLogin",
-                      "width=500,height=600,scrollbars=yes,resizable=yes"
-                    );
-
-                    // 새 창 모니터링
-                    const checkClosed = setInterval(() => {
-                      if (oauthWindow?.closed) {
-                        clearInterval(checkClosed);
-
-                        // 잠시 후 로그인 상태 확인
-                        setTimeout(async () => {
-                          try {
-                            // AuthContext를 통해 인증 상태 업데이트
-                            await checkAuth();
-                            
-                            console.log("로그인 성공 - mypage로 이동");
-                            onClose();
-                            navigate("/mypage");
-                          } catch (error) {
-                            console.error("세션 확인 오류:", error);
-                            alert("로그인 확인 중 오류가 발생했습니다.");
-                          }
-                        }, 1000);
-                      }
-                    }, 1000);
+                    // 직접 백엔드 OAuth URL로 이동
+                    window.location.href = "http://15.165.241.81:8080/oauth2/authorization/kakao";
                   }}
                 >
                   <img

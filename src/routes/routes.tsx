@@ -64,7 +64,7 @@ export const routes: RouteObject[] = [
         ),
       },
       {
-        path: "/oauth2/authorization/kakao",
+        path: "/login",
         element: (
           <Suspense fallback={<LoadingFallback />}>
             <OAuthCallback />
@@ -72,7 +72,7 @@ export const routes: RouteObject[] = [
         ),
       },
       {
-        path: "/login",
+        path: "/login/oauth2/code/kakao",
         element: (
           <Suspense fallback={<LoadingFallback />}>
             <OAuthCallback />
