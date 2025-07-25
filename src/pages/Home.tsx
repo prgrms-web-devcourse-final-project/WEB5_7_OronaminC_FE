@@ -1,9 +1,22 @@
 import { useState } from "react";
-import { useLoginModal } from "../hooks/useLoginModal";
+import LoginModal from "../components/LoginModal";
 
 const Home = () => {
   const [roomCode, setRoomCode] = useState("");
-  const { openModal } = useLoginModal();
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [modalType, setModalType] = useState<"user" | "guest">("guest");
+  const [modalRoomCode, setModalRoomCode] = useState("");
+  
+  const openModal = (code: string, type: "user" | "guest") => {
+    setModalRoomCode(code);
+    setModalType(type);
+    setIsModalOpen(true);
+  };
+  
+  const closeModal = () => {
+    setIsModalOpen(false);
+    setModalRoomCode("");
+  };
 
 
 
@@ -85,6 +98,13 @@ const Home = () => {
           </div>
         </div>
       </section>
+      
+      <LoginModal
+        isOpen={isModalOpen}
+        onClose={closeModal}
+        initialRoomCode={modalRoomCode}
+        type={modalType}
+      />
     </div>
   );
 };

@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMutate } from "../hooks/useFetch";
-import { useAuth } from "../contexts/AuthContext";
 
 interface LoginModalProps {
   isOpen: boolean;
@@ -17,7 +16,6 @@ const LoginModal = ({
   type,
 }: LoginModalProps) => {
   const navigate = useNavigate();
-  const { setGuestUser } = useAuth();
 
   const [nickname, setNickname] = useState("");
   const [roomCode, setRoomCode] = useState(initialRoomCode);
@@ -28,12 +26,11 @@ const LoginModal = ({
       console.log("data", data);
       const userData = data as { id: string };
 
-      // AuthContext를 통해 게스트 사용자 정보 설정
-      setGuestUser({
-        id: userData.id,
-        nickname: nickname,
-        roomCode: roomCode,
-      });
+      // sessionStorage에 게스트 사용자 정보 저장
+      sessionStorage.setItem("userId", userData.id);
+      sessionStorage.setItem("userNickname", nickname);
+      sessionStorage.setItem("isLoggedIn", "true");
+      sessionStorage.setItem("roomCode", roomCode);
 
       navigate(`/room/${roomCode}`);
       onClose();

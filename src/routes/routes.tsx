@@ -1,7 +1,6 @@
 import { lazy, Suspense } from "react";
 import type { RouteObject } from "react-router-dom";
 import LoadingFallback from "../components/LoadingFallback";
-import ProtectedRoute from "../components/ProtectedRoute";
 import MainLayout from "../layouts/MainLayout";
 
 const Home = lazy(() => import("../pages/Home"));
@@ -20,9 +19,7 @@ export const routes: RouteObject[] = [
         path: "/",
         element: (
           <Suspense fallback={<LoadingFallback />}>
-            <ProtectedRoute requireAuth={false}>
-              <Home />
-            </ProtectedRoute>
+            <Home />
           </Suspense>
         ),
       },
@@ -31,9 +28,7 @@ export const routes: RouteObject[] = [
         path: "/create-room",
         element: (
           <Suspense fallback={<LoadingFallback />}>
-            <ProtectedRoute requireAuth={true}>
-              <CreateRoom />
-            </ProtectedRoute>
+            <CreateRoom />
           </Suspense>
         ),
       },
@@ -57,9 +52,7 @@ export const routes: RouteObject[] = [
         path: "/mypage",
         element: (
           <Suspense fallback={<LoadingFallback />}>
-            <ProtectedRoute requireAuth={true}>
-              <MyPage />
-            </ProtectedRoute>
+            <MyPage />
           </Suspense>
         ),
       },

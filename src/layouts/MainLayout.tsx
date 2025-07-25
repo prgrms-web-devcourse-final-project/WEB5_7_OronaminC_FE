@@ -1,14 +1,71 @@
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
-import { useLoginModal } from "../hooks/useLoginModal";
-import { useAuth } from "../contexts/AuthContext";
 import LoginModal from "../components/LoginModal";
+import { useState, useEffect } from "react";
+
+interface User {
+  id: number;
+  name: string;
+  nickname: string;
+  role: string;
+}
+
+interface GuestUser {
+  id: string;
+  nickname: string;
+  roomCode: string;
+}
 
 const MainLayout = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { isModalOpen, roomCode, type, openModal, closeModal } =
-    useLoginModal();
-  const { user, guestUser, isAuthenticated, isGuest, logout } = useAuth();
+
+  const [user, setUser] = useState<User | null>(null);
+  const [guestUser, setGuestUser] = useState<GuestUser | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [roomCode, setRoomCode] = useState("");
+  const [type, setType] = useState<"user" | "guest">("user");
+
+  const openModal = (code: string, modalType: "user" | "guest") => {
+    setRoomCode(code);
+    setType(modalType);
+    setIsModalOpen(true);
+  };
+
+  const closeModal = () => {
+    setIsModalOpen(false);
+    setRoomCode("");
+  };
+
+  useEffect(() => {
+    // localStorage에서 사용자 정보 확인
+    const savedSession = localStorage.getItem("userSession");
+    if (savedSession) {
+      try {
+        setUser(JSON.parse(savedSession));
+      } catch {
+        localStorage.removeItem("userSession");
+      }
+    }
+
+    // sessionStorage에서 게스트 정보 확인
+    const guestId = sessionStorage.getItem("userId");
+    const guestNickname = sessionStorage.getItem("userNickname");
+    const isLoggedIn = sessionStorage.getItem("isLoggedIn");
+    const roomCode = sessionStorage.getItem("roomCode");
+
+    if (guestId && guestNickname && isLoggedIn === "true") {
+      setGuestUser({
+        id: guestId,
+        nickname: guestNickname,
+        roomCode: roomCode || "",
+      });
+    }
+  }, []);
+
+  console.log(user);
+
+  const isAuthenticated = !!user;
+  const isGuest = !!guestUser;
 
   const handleLogout = async () => {
     try {
@@ -25,15 +82,36 @@ const MainLayout = () => {
         );
 
         if (response.status === 204) {
-          logout();
+          // 로그아웃 처리
+          setUser(null);
+          setGuestUser(null);
+          localStorage.removeItem("userSession");
+          sessionStorage.removeItem("userId");
+          sessionStorage.removeItem("userNickname");
+          sessionStorage.removeItem("isLoggedIn");
+          sessionStorage.removeItem("roomCode");
           navigate("/");
         }
       } else {
-        logout();
+        // 게스트 로그아웃
+        setUser(null);
+        setGuestUser(null);
+        localStorage.removeItem("userSession");
+        sessionStorage.removeItem("userId");
+        sessionStorage.removeItem("userNickname");
+        sessionStorage.removeItem("isLoggedIn");
+        sessionStorage.removeItem("roomCode");
         navigate("/");
       }
     } catch {
-      logout();
+      // 에러 시에도 로그아웃 처리
+      setUser(null);
+      setGuestUser(null);
+      localStorage.removeItem("userSession");
+      sessionStorage.removeItem("userId");
+      sessionStorage.removeItem("userNickname");
+      sessionStorage.removeItem("isLoggedIn");
+      sessionStorage.removeItem("roomCode");
       navigate("/");
     }
   };
