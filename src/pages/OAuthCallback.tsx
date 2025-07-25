@@ -1,12 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { useAuthStore } from "../store/authStore";
 
 const OAuthCallback = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const [authChecked, setAuthChecked] = useState(false);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { setUser } = useAuthStore();
 
   useEffect(() => {
     const handleOAuthCallback = async () => {
@@ -16,16 +15,10 @@ const OAuthCallback = () => {
         const errorParam = searchParams.get("error");
 
         if (errorParam) {
-          console.error("카카오 로그인 오류:", errorParam);
-          setError("카카오 로그인에 실패했습니다.");
-          setAuthChecked(true);
           return;
         }
 
         if (!code) {
-          console.error("인증 코드가 없습니다.");
-          setError("인증 코드가 없습니다.");
-          setAuthChecked(true);
           return;
         }
 
@@ -41,46 +34,19 @@ const OAuthCallback = () => {
 
         if (response.ok) {
           const userData = await response.json();
-          localStorage.setItem("userSession", JSON.stringify(userData));
-          setIsAuthenticated(true);
+          setUser(userData);
+          navigate("/mypage");
         } else {
-          const errorData = await response.json();
-          console.error("로그인 실패:", errorData);
-          setError(errorData.message || "로그인에 실패했습니다.");
+          navigate("/");
         }
-
-        setAuthChecked(true);
-      } catch (error) {
-        console.error("OAuth 로그인 실패:", error);
-        setError("로그인 처리 중 오류가 발생했습니다.");
-        setAuthChecked(true);
+      } catch {
+        alert("로그인 처리 중 오류가 발생했습니다.");
+        navigate("/");
       }
     };
 
     handleOAuthCallback();
-  }, [searchParams]);
-
-  useEffect(() => {
-    if (authChecked) {
-      if (isAuthenticated) {
-        navigate("/mypage");
-      } else {
-        alert(error || "로그인에 실패했습니다. 다시 시도해주세요.");
-        navigate("/");
-      }
-    }
-  }, [authChecked, isAuthenticated, error, navigate]);
-
-  if (error) {
-    return (
-      <div className="h-screen flex items-center justify-center">
-        <div className="text-center">
-          <h2 className="text-xl font-bold mb-2 text-red-600">로그인 실패</h2>
-          <p className="text-gray-600">{error}</p>
-        </div>
-      </div>
-    );
-  }
+  }, [searchParams, setUser, navigate]);
 
   return (
     <div className="h-screen flex items-center justify-center">

@@ -1,26 +1,14 @@
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import LoginModal from "../components/LoginModal";
 import { useState, useEffect } from "react";
-
-interface User {
-  id: number;
-  name: string;
-  nickname: string;
-  role: string;
-}
-
-interface GuestUser {
-  id: string;
-  nickname: string;
-  roomCode: string;
-}
+import { useAuthStore } from "../store/authStore";
 
 const MainLayout = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  const { user, guestUser, isAuthenticated, isGuest, logout, checkAuthStatus } =
+    useAuthStore();
 
-  const [user, setUser] = useState<User | null>(null);
-  const [guestUser, setGuestUser] = useState<GuestUser | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [roomCode, setRoomCode] = useState("");
   const [type, setType] = useState<"user" | "guest">("user");
@@ -37,81 +25,35 @@ const MainLayout = () => {
   };
 
   useEffect(() => {
-    // localStorage에서 사용자 정보 확인
-    const savedSession = localStorage.getItem("userSession");
-    if (savedSession) {
-      try {
-        setUser(JSON.parse(savedSession));
-      } catch {
-        localStorage.removeItem("userSession");
-      }
-    }
+    checkAuthStatus();
+  }, [checkAuthStatus]);
 
-    // sessionStorage에서 게스트 정보 확인
-    const guestId = sessionStorage.getItem("userId");
-    const guestNickname = sessionStorage.getItem("userNickname");
-    const isLoggedIn = sessionStorage.getItem("isLoggedIn");
-    const roomCode = sessionStorage.getItem("roomCode");
-
-    if (guestId && guestNickname && isLoggedIn === "true") {
-      setGuestUser({
-        id: guestId,
-        nickname: guestNickname,
-        roomCode: roomCode || "",
-      });
-    }
-  }, []);
-
-  console.log(user);
-
-  const isAuthenticated = !!user;
-  const isGuest = !!guestUser;
+  console.log("user", user);
+  console.log("guestUser", guestUser);
+  console.log("isAuthenticated", isAuthenticated);
+  console.log("isGuest", isGuest);
 
   const handleLogout = async () => {
     try {
       if (isAuthenticated) {
-        const response = await fetch(
-          "http://15.165.241.81:8080/api/auth/logout",
-          {
-            method: "POST",
-            credentials: "include",
-            headers: {
-              "Content-Type": "application/json",
-            },
-          }
-        );
+        const response = await fetch("/api/auth/logout", {
+          method: "POST",
+          credentials: "include",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        });
 
         if (response.status === 204) {
-          // 로그아웃 처리
-          setUser(null);
-          setGuestUser(null);
-          localStorage.removeItem("userSession");
-          sessionStorage.removeItem("userId");
-          sessionStorage.removeItem("userNickname");
-          sessionStorage.removeItem("isLoggedIn");
-          sessionStorage.removeItem("roomCode");
+          logout();
           navigate("/");
         }
       } else {
-        // 게스트 로그아웃
-        setUser(null);
-        setGuestUser(null);
-        localStorage.removeItem("userSession");
-        sessionStorage.removeItem("userId");
-        sessionStorage.removeItem("userNickname");
-        sessionStorage.removeItem("isLoggedIn");
-        sessionStorage.removeItem("roomCode");
+        logout();
         navigate("/");
       }
     } catch {
-      // 에러 시에도 로그아웃 처리
-      setUser(null);
-      setGuestUser(null);
-      localStorage.removeItem("userSession");
-      sessionStorage.removeItem("userId");
-      sessionStorage.removeItem("userNickname");
-      sessionStorage.removeItem("isLoggedIn");
-      sessionStorage.removeItem("roomCode");
+      logout();
       navigate("/");
     }
   };
