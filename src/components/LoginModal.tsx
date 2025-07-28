@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMutate } from "../hooks/useFetch";
 import type { User } from "../types/user";
+import { useAuthStore } from "../store/authStore";
 
 interface LoginModalProps {
   isOpen: boolean;
@@ -17,6 +18,7 @@ const LoginModal = ({
   type,
 }: LoginModalProps) => {
   const navigate = useNavigate();
+  const { setUser } = useAuthStore();
 
   const [nickname, setNickname] = useState("");
   const [roomCode, setRoomCode] = useState(initialRoomCode);
@@ -25,12 +27,7 @@ const LoginModal = ({
   const guestLoginMutation = useMutate("/api/auth/guest", "POST", {
     onSuccess: (data) => {
       const userData = data as User;
-
-      sessionStorage.setItem("userId", userData.id.toString());
-      sessionStorage.setItem("userNickname", userData.nickname);
-      sessionStorage.setItem("userRole", userData.role);
-      sessionStorage.setItem("isLoggedIn", "true");
-
+      setUser(userData);
       navigate(`/room/${roomCode}`);
       onClose();
     },

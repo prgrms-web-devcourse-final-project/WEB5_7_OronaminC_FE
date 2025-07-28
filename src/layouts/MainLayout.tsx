@@ -1,13 +1,12 @@
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import LoginModal from "../components/LoginModal";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useAuthStore } from "../store/authStore";
 
 const MainLayout = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, guestUser, isAuthenticated, isGuest, logout, checkAuthStatus } =
-    useAuthStore();
+  const { user, isAuthenticated, logout } = useAuthStore();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [roomCode, setRoomCode] = useState("");
@@ -23,10 +22,6 @@ const MainLayout = () => {
     setIsModalOpen(false);
     setRoomCode("");
   };
-
-  useEffect(() => {
-    checkAuthStatus();
-  }, [checkAuthStatus]);
 
   const handleLogout = async () => {
     try {
@@ -73,6 +68,7 @@ const MainLayout = () => {
 
             <Link
               to="/"
+              onClick={handleLogout}
               className="bg-red-500 hover:bg-red-600 text-white px-4 py-1 rounded-full text-sm font-medium transition-colors"
             >
               나가기
@@ -80,18 +76,10 @@ const MainLayout = () => {
           </div>
         ) : (
           <div className="flex items-center gap-2">
-            {location.pathname === "/mypage" && (
-              <Link
-                to="/room/13"
-                className="bg-blue-500 hover:bg-blue-600 text-white px-2 py-2 rounded-md text-sm font-medium transition-colors"
-              >
-                초대 코드로 입장
-              </Link>
-            )}
-            {isAuthenticated || isGuest ? (
+            {isAuthenticated ? (
               <div className="flex items-center gap-2">
                 <span className="text-sm text-gray-600">
-                  {user?.nickname || guestUser?.nickname || "사용자"} 님
+                  {user?.nickname || "사용자"} 님
                 </span>
                 <button
                   onClick={handleLogout}
@@ -107,6 +95,14 @@ const MainLayout = () => {
               >
                 회원 로그인
               </button>
+            )}
+            {location.pathname === "/mypage" && (
+              <Link
+                to="/room/13"
+                className="bg-blue-500 hover:bg-blue-600 text-white px-2 py-2 rounded-md text-sm font-medium transition-colors"
+              >
+                초대 코드로 입장
+              </Link>
             )}
           </div>
         )}

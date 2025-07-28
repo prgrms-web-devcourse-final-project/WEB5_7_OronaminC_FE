@@ -31,13 +31,10 @@ const OAuthCallback = () => {
           },
           body: JSON.stringify({ code, state }),
         });
-
         if (response.ok) {
           const userData = await response.json();
           setUser(userData);
           navigate("/mypage");
-        } else {
-          navigate("/");
         }
       } catch {
         alert("로그인 처리 중 오류가 발생했습니다.");
