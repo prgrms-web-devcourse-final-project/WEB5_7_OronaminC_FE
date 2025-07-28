@@ -1,68 +1,79 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 
 type FilterType = "전체" | "생성한 방" | "참여한 방";
-type RoomStatus = "완료됨" | "진행 중" | "예정됨";
+type RoomStatus = "BEFORE_START" | "STARTED" | "ENDED";
+type ParticipationType = "CREATED" | "JOINED";
 
 interface Room {
-  id: string;
-  title: string;
+  emojiCount: number;
+  participationType: ParticipationType;
+  questions: number;
+  roomId: number;
+  startedAt: string;
   status: RoomStatus;
-  date: string;
-  time: string;
-  isCreator: boolean;
+  title: string;
 }
 
 const MyPage = () => {
   const navigate = useNavigate();
   const [activeFilter, setActiveFilter] = useState<FilterType>("전체");
+  const [currentPage, setCurrentPage] = useState<number>(0);
+  const pageSize = 10;
 
-  // 가상의 발표방 데이터
-  const [rooms] = useState<Room[]>([
-    {
-      id: "1",
-      title: "React 훅스 알아가기",
-      status: "완료됨",
-      date: "2024.07.02",
-      time: "오전",
-      isCreator: true,
+  const { data: userInfo } = useQuery({
+    queryKey: ["userInfo"],
+    queryFn: async () => {
+      const response = await fetch("/api/members/me", {
+        credentials: "include",
+      });
+      if (!response.ok) throw new Error("회원 정보 조회 실패");
+      return response.json();
     },
-    {
-      id: "2",
-      title: "테이블메이어 실제 원칙",
-      status: "진행 중",
-      date: "2024.07.01",
-      time: "저녁",
-      isCreator: false,
+  });
+
+  const { data: roomsData } = useQuery({
+    queryKey: ["rooms", activeFilter, currentPage],
+    queryFn: async () => {
+      const typeParam =
+        activeFilter === "전체"
+          ? "ALL"
+          : activeFilter === "생성한 방"
+          ? "CREATED"
+          : "JOINED";
+
+      const response = await fetch(
+        `/api/members/rooms?type=${typeParam}&page=${currentPage}&size=${pageSize}`,
+        {
+          credentials: "include",
+        }
+      );
+      if (!response.ok) throw new Error("발표방 목록 조회 실패");
+      return response.json();
     },
-    {
-      id: "3",
-      title: "JavaScript ES6+ 난개념",
-      status: "예정됨",
-      date: "2024.06.28",
-      time: "오전",
-      isCreator: true,
-    },
-  ]);
+  });
+
+  const rooms = roomsData?.content || [];
+  const totalPages = roomsData?.totalPages || 0;
+  const totalElements = roomsData?.totalElements || 0;
 
   const handleFilterChange = (filter: FilterType) => {
     setActiveFilter(filter);
+    setCurrentPage(0);
   };
 
-  const filteredRooms = rooms.filter((room) => {
-    if (activeFilter === "전체") return true;
-    if (activeFilter === "생성한 방") return room.isCreator;
-    if (activeFilter === "참여한 방") return !room.isCreator;
-    return true;
-  });
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+  };
 
   const getStatusClassName = (status: RoomStatus) => {
     switch (status) {
-      case "완료됨":
+      case "BEFORE_START":
         return "bg-green-100 text-green-800";
-      case "진행 중":
+      case "STARTED":
         return "bg-blue-100 text-blue-800";
-      case "예정됨":
+      case "ENDED":
         return "bg-purple-100 text-purple-800";
       default:
         return "bg-gray-100 text-gray-800";
@@ -70,17 +81,23 @@ const MyPage = () => {
   };
 
   const renderPagination = () => {
+    if (totalPages <= 1) return null;
+
     return (
       <div className="flex justify-center mt-6 gap-2">
-        <button className="w-8 h-8 flex items-center justify-center bg-blue-500 text-white rounded-md">
-          1
-        </button>
-        <button className="w-8 h-8 flex items-center justify-center bg-gray-200 text-gray-700 rounded-md">
-          2
-        </button>
-        <button className="w-8 h-8 flex items-center justify-center bg-gray-200 text-gray-700 rounded-md">
-          3
-        </button>
+        {Array.from({ length: totalPages }, (_, i) => i).map((page) => (
+          <button
+            key={page}
+            onClick={() => handlePageChange(page)}
+            className={`w-8 h-8 flex items-center justify-center rounded-md ${
+              page === currentPage
+                ? "bg-blue-500 text-white"
+                : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+            }`}
+          >
+            {page + 1}
+          </button>
+        ))}
       </div>
     );
   };
@@ -89,23 +106,31 @@ const MyPage = () => {
     navigate("/create-room");
   };
 
+  if (!userInfo) return null;
+
   return (
     <div className="w-full mx-auto p-6">
       <div className="flex gap-6">
         <div className="w-1/5">
           <div className="bg-white rounded-lg shadow-sm p-4">
             <div className="rounded-md mb-8">
-              <span className="text-lg font-bold ">이지훈님의 활동</span>
+              <span className="text-lg font-bold">
+                {userInfo.nickname}님의 활동
+              </span>
               <div className="flex justify-between mt-4">
                 <div className="text-center">
                   <div className="flex flex-col bg-blue-100 text-blue-700 w-34 h-20 rounded-md flex items-center justify-center text-xl font-semibold">
-                    <span className="text-xl font-semibold">12</span>
+                    <span className="text-xl font-semibold">
+                      {userInfo.joinedRoomCount}
+                    </span>
                     <span className="text-xs font-medium">참여한 방</span>
                   </div>
                 </div>
                 <div className="text-center">
                   <div className="flex flex-col bg-green-100 text-green-700 w-34 h-20 rounded-md flex items-center justify-center text-xl font-semibold">
-                    <span className="text-xl font-semibold">28</span>
+                    <span className="text-xl font-semibold">
+                      {userInfo.createdRoomCount}
+                    </span>
                     <span className="text-xs font-medium">만든 방</span>
                   </div>
                 </div>
@@ -124,9 +149,9 @@ const MyPage = () => {
           <div className="flex justify-between items-center mb-2 w-full">
             <div>
               <h1 className="text-2xl font-bold mb-1">마이페이지</h1>
-              <p className="text-gray-500 text-sm">
-                회원님의 모든 발표방을 관리해보세요.
-              </p>
+              <div className="text-sm text-gray-600 mb-4">
+                총 {totalElements}개의 발표방이 있습니다.
+              </div>
             </div>
           </div>
 
@@ -152,9 +177,9 @@ const MyPage = () => {
                 )}
               </div>
 
-              {filteredRooms.map((room) => (
+              {rooms.map((room: Room) => (
                 <div
-                  key={room.id}
+                  key={room.roomId}
                   className="bg-white p-4 rounded-lg shadow-sm mb-4 flex justify-between items-center"
                 >
                   <div>
@@ -164,45 +189,53 @@ const MyPage = () => {
                           room.status
                         )}`}
                       >
-                        {room.status}
+                        {room.status === "BEFORE_START"
+                          ? "예정"
+                          : room.status === "STARTED"
+                          ? "진행중"
+                          : "종료"}
                       </span>
                       <span
                         className={`text-xs px-2 py-1 rounded ${
-                          room.isCreator
+                          room.participationType === "CREATED"
                             ? "bg-green-100 text-green-800"
                             : "bg-gray-100 text-gray-800"
                         }`}
                       >
-                        {room.isCreator ? "내가 만듦" : "참여"}
+                        {room.participationType === "CREATED"
+                          ? "생성한 방"
+                          : "참여한 방"}
                       </span>
                     </div>
                     <h3 className="font-semibold text-lg">{room.title}</h3>
                     <p className="text-gray-500 text-sm">
-                      발표일: {room.date} • {room.time}
+                      발표일: {room.startedAt}
                     </p>
                   </div>
                   <div className="flex gap-2">
-                    {room.status === "예정됨" && (
-                      <button className="border border-gray-300 text-gray-700 px-4 py-1 rounded-md">
-                        리포트
-                      </button>
+                    {room.status === "ENDED" && (
+                      <>
+                        <button className="border border-gray-300 text-blue-700 bg-blue-100 hover:bg-blue-200 border-blue-200 cursor-pointer px-4 py-1 rounded-md">
+                          리포트
+                        </button>
+                        <button className="border border-gray-300 text-red-700 bg-red-100 hover:bg-red-200 border-red-200 cursor-pointer px-4 py-1 rounded-md">
+                          삭제
+                        </button>
+                      </>
                     )}
-                    <Link
-                      to={`/room/${room.id}`}
-                      className={`px-4 py-1 rounded-md ${
-                        room.status === "완료됨"
-                          ? "bg-gray-200 text-gray-700"
-                          : room.status === "진행 중"
-                          ? "bg-blue-500 text-white"
-                          : "border border-gray-300 text-gray-700"
-                      }`}
-                    >
-                      {room.status === "완료됨"
-                        ? "입장하기"
-                        : room.status === "진행 중"
-                        ? "입장하기"
-                        : "확인하기"}
-                    </Link>
+                    {(room.status === "BEFORE_START" ||
+                      room.status === "STARTED") && (
+                      <Link
+                        to={`/room/${room.roomId}`}
+                        className={`px-4 py-1 rounded-md ${
+                          room.status === "BEFORE_START"
+                            ? "bg-gray-200 text-gray-700 hover:bg-gray-300 cursor-pointer"
+                            : "bg-blue-500 text-white hover:bg-blue-600 cursor-pointer"
+                        }`}
+                      >
+                        입장하기
+                      </Link>
+                    )}
                   </div>
                 </div>
               ))}
