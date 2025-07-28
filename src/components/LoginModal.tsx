@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMutate } from "../hooks/useFetch";
+import type { User } from "../types/user";
 
 interface LoginModalProps {
   isOpen: boolean;
@@ -23,14 +24,12 @@ const LoginModal = ({
 
   const guestLoginMutation = useMutate("/api/auth/guest", "POST", {
     onSuccess: (data) => {
-      console.log("data", data);
-      const userData = data as { id: string };
+      const userData = data as User;
 
-      // sessionStorage에 게스트 사용자 정보 저장
-      sessionStorage.setItem("userId", userData.id);
-      sessionStorage.setItem("userNickname", nickname);
+      sessionStorage.setItem("userId", userData.id.toString());
+      sessionStorage.setItem("userNickname", userData.nickname);
+      sessionStorage.setItem("userRole", userData.role);
       sessionStorage.setItem("isLoggedIn", "true");
-      sessionStorage.setItem("roomCode", roomCode);
 
       navigate(`/room/${roomCode}`);
       onClose();
@@ -117,7 +116,8 @@ const LoginModal = ({
                   className="w-full py-3 px-4 bg-[#FEE500] hover:bg-[#FFDE00] text-[#3C1E1E] font-medium rounded-md flex items-center justify-center gap-2 transition-all duration-200 shadow hover:shadow-md relative overflow-hidden hover:opacity-90 cursor-pointer"
                   onClick={() => {
                     // 직접 백엔드 OAuth URL로 이동
-                    window.location.href = "http://15.165.241.81:8080/oauth2/authorization/kakao";
+                    window.location.href =
+                      "http://15.165.241.81:8080/oauth2/authorization/kakao";
                   }}
                 >
                   <img

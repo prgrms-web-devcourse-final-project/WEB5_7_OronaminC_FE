@@ -232,10 +232,33 @@ const CreateRoom = () => {
     setDocumentUrl("");
   };
 
-  const addEmail = () => {
+  const addEmail = async () => {
     if (currentEmail && !emails.includes(currentEmail)) {
-      setEmails([...emails, currentEmail]);
-      setCurrentEmail("");
+      try {
+        const response = await fetch(
+          `/api/members/exists?email=${encodeURIComponent(currentEmail)}`,
+          {
+            method: "GET",
+            credentials: "include",
+          }
+        );
+
+        if (!response.ok) {
+          throw new Error("이메일 확인 실패");
+        }
+
+        const data = await response.json();
+
+        if (data.exists) {
+          setEmails([...emails, currentEmail]);
+          setCurrentEmail("");
+        } else {
+          alert("존재하지 않는 이메일입니다.");
+        }
+      } catch (error) {
+        console.error("이메일 확인 중 오류 발생:", error);
+        alert("이메일 확인 중 오류가 발생했습니다.");
+      }
     }
   };
 

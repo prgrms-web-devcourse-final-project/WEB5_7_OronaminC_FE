@@ -63,8 +63,8 @@ export const useAuthStore = create<AuthState>()(
         localStorage.removeItem("userSession");
         sessionStorage.removeItem("userId");
         sessionStorage.removeItem("userNickname");
+        sessionStorage.removeItem("userRole");
         sessionStorage.removeItem("isLoggedIn");
-        sessionStorage.removeItem("roomCode");
       },
 
       checkAuthStatus: () => {

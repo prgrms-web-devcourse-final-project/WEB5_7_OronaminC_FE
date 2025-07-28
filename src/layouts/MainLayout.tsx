@@ -28,11 +28,6 @@ const MainLayout = () => {
     checkAuthStatus();
   }, [checkAuthStatus]);
 
-  console.log("user", user);
-  console.log("guestUser", guestUser);
-  console.log("isAuthenticated", isAuthenticated);
-  console.log("isGuest", isGuest);
-
   const handleLogout = async () => {
     try {
       if (isAuthenticated) {
