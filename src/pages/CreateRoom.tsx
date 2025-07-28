@@ -43,7 +43,7 @@ const CreateRoom = () => {
   const [currentEmail, setCurrentEmail] = useState<string>("");
   const [dragActive, setDragActive] = useState<boolean>(false);
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
-  const [documentUrl, setDocumentUrl] = useState<string>("");
+  const [objectKey, setObjectKey] = useState<string>("");
 
   const {
     register,
@@ -138,7 +138,7 @@ const CreateRoom = () => {
         description: data.roomDescription,
         endDate: formattedDate,
         participantLimit: data.maxParticipants,
-        documentUrl: documentUrl || "url",
+        documentUrl: objectKey,
         teamEmail: emails,
       };
 
@@ -214,22 +214,19 @@ const CreateRoom = () => {
 
         await uploadFileToS3(presignedUrlData.presignedUrl, file);
 
-        const uploadedUrl = presignedUrlData.presignedUrl.split("?")[0];
-        setDocumentUrl(uploadedUrl);
-
-        console.log(`파일 업로드 완료: ${file.name}, URL: ${uploadedUrl}`);
+        const objectKey = presignedUrlData.objectKey;
+        setObjectKey(objectKey);
 
         setUploadedFiles([file]);
-      } catch (fileError: any) {
-        console.error(`파일 업로드 실패:`, fileError);
-        alert(`파일 업로드 실패: ${fileError.message}`);
+      } catch (error) {
+        console.error("파일 업로드 중 오류 발생:", error);
+        alert("파일 업로드 중 오류가 발생했습니다.");
       }
     }
   };
 
   const removeFile = (index: number) => {
     setUploadedFiles((prevFiles) => prevFiles.filter((_, i) => i !== index));
-    setDocumentUrl("");
   };
 
   const addEmail = async () => {
@@ -280,28 +277,31 @@ const CreateRoom = () => {
           <div className="bg-white p-4 rounded-lg shadow-sm">
             <div className="mb-6">
               <h2 className="text-md font-semibold mb-2">제목 작성 팁</h2>
-              <ul className="text-sm text-gray-600 space-y-2">
-                <li>• 정해지면 넣어주세요</li>
-                <li>• 정해지면 넣어주세요</li>
-                <li>• 정해지면 넣어주세요</li>
+              <ul className="text-xs text-gray-600 space-y-2">
+                <li>• 내용은 명확하고 간결하게 작성해주세요</li>
+                <li>• 특수문자는 제외해주세요</li>
               </ul>
             </div>
 
             <div className="mb-6">
               <h2 className="text-md font-semibold mb-2">파일 업로드 설정</h2>
-              <ul className="text-sm text-gray-600 space-y-2">
-                <li>• 정해지면 넣어주세요</li>
-                <li>• 정해지면 넣어주세요</li>
-                <li>• 정해지면 넣어주세요</li>
+              <ul className="text-xs text-gray-600 space-y-2">
+                <li>• PDF 파일만 업로드 가능합니다</li>
+                <li>• 파일 크기는 50MB 이하만 가능합니다</li>
+                <li>• PDF 파일은 1개만 업로드 가능합니다</li>
+                <li>• PDF 파일의 페이지 수는 10페이지 이하만 가능합니다</li>
               </ul>
             </div>
 
             <div>
               <h2 className="text-md font-semibold mb-2">참여인원 설정</h2>
-              <ul className="text-sm text-gray-600 space-y-2">
-                <li>• 정해지면 넣어주세요</li>
-                <li>• 정해지면 넣어주세요</li>
-                <li>• 정해지면 넣어주세요</li>
+              <ul className="text-xs text-gray-600 space-y-2">
+                <li>• 초대는 최대 5명까지 가능합니다</li>
+                <li>• 회원가입이 완료된 이메일만 초대 가능합니다</li>
+                <li>
+                  • 팀원들은 방 생성자와 함께 방에 참여해 댓글을 남길 수
+                  있습니다
+                </li>
               </ul>
             </div>
           </div>
@@ -577,7 +577,10 @@ const CreateRoom = () => {
                   <button
                     type="button"
                     onClick={addEmail}
-                    className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 font-medium transition-colors m-1 rounded-lg cursor-pointer"
+                    disabled={emails.length >= 5}
+                    className={`bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 font-medium transition-colors m-1 rounded-lg cursor-pointer ${
+                      emails.length >= 5 ? "opacity-50 cursor-not-allowed" : ""
+                    }`}
                   >
                     추가
                   </button>
