@@ -1,12 +1,20 @@
-import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
+import {
+  Link,
+  Outlet,
+  useLocation,
+  useNavigate,
+  useParams,
+} from "react-router-dom";
 import LoginModal from "../components/LoginModal";
 import { useState } from "react";
 import { useAuthStore } from "../store/authStore";
+import { useQuery } from "@tanstack/react-query";
 
 const MainLayout = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, isAuthenticated, logout } = useAuthStore();
+  const { roomId } = useParams<{ roomId: string }>();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [roomCode, setRoomCode] = useState("");
@@ -48,12 +56,27 @@ const MainLayout = () => {
     }
   };
 
+  const { data: roomData } = useQuery({
+    queryKey: ["room", roomId],
+    queryFn: async () => {
+      if (!roomId) return null;
+      const response = await fetch(`/api/rooms/${roomId}`, {
+        credentials: "include",
+      });
+      if (!response.ok) throw new Error("방 정보 조회 실패");
+      return response.json();
+    },
+    enabled: !!roomId,
+  });
+
+  console.log(user, roomData);
+
   return (
     <div className="min-h-screen flex flex-col">
       <header className="py-4 px-6 border-b border-gray-100 flex justify-between items-center">
         {location.pathname.startsWith("/room/") ? (
           <div className="flex justify-between items-center">
-            <h1 className="text-xl font-bold">프론트엔드 아키텍처 발표</h1>
+            <h1 className="text-xl font-bold">{roomData?.title || "발표실"}</h1>
           </div>
         ) : (
           <Link to="/" className="text-xl font-bold">
@@ -64,7 +87,10 @@ const MainLayout = () => {
         {!location.pathname.endsWith("/report") &&
         location.pathname.startsWith("/room/") ? (
           <div className="flex items-center gap-2">
-            <span className="mr-2 text-sm">참가자: 41 / 50</span>
+            <span className="mr-2 text-sm">
+              참가자: {roomData?.participantCount} /{" "}
+              {roomData?.participantLimit}
+            </span>
 
             <Link
               to="/"

@@ -1,7 +1,50 @@
 import { useState, useRef, useEffect } from "react";
 import { useParams } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { useAuthStore } from "../store/authStore";
 
-// QuestionItem 컴포넌트: 질문 및 답변을 표시합니다
+interface Slide {
+  title: string;
+  content: Array<{
+    number: string;
+    text: string;
+  }>;
+}
+
+interface RoomData {
+  title: string;
+  description: string;
+  name: string;
+  team: string[];
+  roomCode: string;
+  presignedUrl: string;
+  participantCount: number;
+  participantLimit: number;
+  emojiCount: number;
+  isHost: boolean;
+  isTeamMember: boolean;
+  roomStatus: "BEFORE_START" | "STARTED" | "ENDED";
+  createdAt: string;
+  slides?: Slide[];
+}
+
+interface QuestionItem {
+  questionId: number;
+  content: string;
+  emojiCount: number;
+  hasAnswer: boolean;
+  isEmojied: boolean;
+  writer: {
+    memberId: number;
+    nickname: string;
+  };
+  createdAt: string;
+}
+
+interface QuestionsResponse {
+  questions: QuestionItem[];
+}
+
 interface QuestionItemProps {
   question: Question;
   toggleReplies: (questionId: number) => void;
@@ -145,92 +188,60 @@ interface Question {
   showReplies: boolean;
 }
 
-interface Participant {
-  id: number;
-  name: string;
-}
-
 const PresentationRoom = () => {
   const { roomId } = useParams<{ roomId: string }>();
-  const [questions, setQuestions] = useState<Question[]>([
-    {
-      id: 1,
-      content:
-        "React와 Vue.js 중 어떤 것을 선택하는 기준이 있나요?\n프로젝트 규모나 팀 구성에 따라 달라지는지 궁금합니다.",
-      author: "김개발자",
-      timestamp: new Date("2024-07-04T15:30:00"),
-      isMyQuestion: false,
-      likes: 24,
-      replies: [
-        {
-          id: 1,
-          content:
-            "팀의 경험과 프로젝트 복잡도를 고려해보세요.\nReact는 대규모 앱에, Vue는 빠른 프로토타이핑에 적합합니다.",
-          author: "발표자_김발표",
-          timestamp: new Date("2024-07-04T15:32:00"),
-          isMyReply: false,
-          likes: 12,
-        },
-      ],
-      showReplies: false,
-    },
-    {
-      id: 2,
-      content: "상능 최적화 방법 중 가장 효과적인 것은 무엇인가요?",
-      author: "박개발자",
-      timestamp: new Date("2024-07-04T14:24:00"),
-      isMyQuestion: false,
-      likes: 12,
-      replies: [],
-      showReplies: false,
-    },
-    {
-      id: 3,
-      content:
-        "프론트엔드와 백엔드 간의 API 설계 시\n주의해야 할 점들이 있을까요?",
-      author: "Guest_이밸톤",
-      timestamp: new Date("2024-07-04T16:48:00"),
-      isMyQuestion: false,
-      likes: 8,
-      replies: [
-        {
-          id: 2,
-          content: "명확한 API 문서화와 에러 처리 방식을 일관되게 유지하세요.",
-          author: "발표자_김발표",
-          timestamp: new Date("2024-07-04T16:50:00"),
-          isMyReply: false,
-          likes: 5,
-        },
-        {
-          id: 3,
-          content: "버전 관리와 하위 호환성도 중요합니다.",
-          author: "최개발자",
-          timestamp: new Date("2024-07-04T16:52:00"),
-          isMyReply: false,
-          likes: 3,
-        },
-      ],
-      showReplies: false,
-    },
-  ]);
-
   const [currentQuestion, setCurrentQuestion] = useState<string>("");
   const [currentReply, setCurrentReply] = useState<string>("");
   const [replyingTo, setReplyingTo] = useState<number | null>(null);
-  const [participants, setParticipants] = useState<Participant[]>([
-    { id: 1, name: "발표자" },
-    { id: 2, name: "참가자1" },
-    { id: 3, name: "참가자2" },
-    { id: 4, name: "참가자3" },
-  ]);
+  const { user } = useAuthStore();
+
+  const {
+    data: roomData,
+    isLoading,
+    isError,
+  } = useQuery<RoomData>({
+    queryKey: ["room", roomId],
+    queryFn: async () => {
+      const response = await fetch(`/api/rooms/${roomId}`, {
+        credentials: "include",
+      });
+      if (!response.ok) throw new Error("방 정보 조회 실패");
+      return response.json();
+    },
+    enabled: !!roomId,
+  });
+
+  const [activeTab, setActiveTab] = useState<
+    "CREATEDAT" | "EMOJI" | "MYQUESTION"
+  >("CREATEDAT");
+
+  const {
+    data: questionsData,
+    isLoading: isQuestionsLoading,
+    isError: isQuestionsError,
+  } = useQuery<QuestionsResponse>({
+    queryKey: ["questions", roomId, activeTab],
+    queryFn: async () => {
+      const params = new URLSearchParams({
+        sort: activeTab.toUpperCase(),
+        roomId: roomId || "",
+        memberId: user?.id?.toString() || "", // TODO: 실제 memberId로 교체 필요
+        size: "10",
+      });
+
+      const response = await fetch(`/api/rooms/${roomId}/questions?${params}`, {
+        credentials: "include",
+      });
+      if (!response.ok) throw new Error("질문 조회 실패");
+      return response.json();
+    },
+    enabled: !!roomId,
+  });
 
   const [activeSlideIndex, setActiveSlideIndex] = useState<number>(0);
-  const [activeTab, setActiveTab] = useState<"recent" | "liked" | "mine">(
-    "recent"
-  );
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const slides = [
+  const slides = roomData?.slides || [
     {
       title: "목차 안내",
       content: [
@@ -256,61 +267,18 @@ const PresentationRoom = () => {
 
   const sendQuestion = () => {
     if (currentQuestion.trim() === "") return;
-
-    const newQuestion: Question = {
-      id: questions.length + 1,
-      content: currentQuestion,
-      author: "나",
-      timestamp: new Date(),
-      isMyQuestion: true,
-      likes: 0,
-      replies: [],
-      showReplies: false,
-    };
-
-    setQuestions([...questions, newQuestion]);
+    // TODO: 질문 등록 API 호출
     setCurrentQuestion("");
   };
 
   const sendReply = () => {
     if (currentReply.trim() === "" || replyingTo === null) return;
-
-    const updatedQuestions = questions.map((question) => {
-      if (question.id === replyingTo) {
-        return {
-          ...question,
-          replies: [
-            ...question.replies,
-            {
-              id: question.replies.length + 1,
-              content: currentReply,
-              author: "나",
-              timestamp: new Date(),
-              isMyReply: true,
-              likes: 0,
-            },
-          ],
-        };
-      }
-      return question;
-    });
-
-    setQuestions(updatedQuestions);
+    // TODO: 답변 등록 API 호출
     setCurrentReply("");
   };
 
   const toggleReplies = (questionId: number) => {
-    const updatedQuestions = questions.map((question) => {
-      if (question.id === questionId) {
-        return {
-          ...question,
-          showReplies: !question.showReplies,
-        };
-      }
-      return question;
-    });
-
-    setQuestions(updatedQuestions);
+    // TODO: 답변 표시 토글 로직
   };
 
   const handleQuestionKeyPress = (e: React.KeyboardEvent) => {
@@ -339,25 +307,20 @@ const PresentationRoom = () => {
     }
   };
 
-  const renderSlideContent = () => {
-    const slide = slides[activeSlideIndex];
-    if (Array.isArray(slide.content)) {
-      return slide.content.map((item, index) => (
-        <div key={index} className="flex items-center mb-2">
-          <div className="bg-blue-500 text-white rounded-full w-8 h-8 flex items-center justify-center mr-2">
-            {item.number}
-          </div>
-          <div>{item.text}</div>
-        </div>
-      ));
-    }
-    return slide.content;
-  };
-
   useEffect(() => {
     // 스크롤을 아래로 이동
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [questions]);
+  }, [questionsData]);
+
+  if (isLoading || isQuestionsLoading) {
+    return <div>Loading...</div>;
+  }
+
+  if (isError || isQuestionsError) {
+    return <div>Error!</div>;
+  }
+
+  const filteredQuestions = questionsData?.questions || [];
 
   return (
     <div className="flex h-screen bg-gray-100">
@@ -372,57 +335,7 @@ const PresentationRoom = () => {
                   <div className="absolute bottom-0 right-0 w-1/3 h-1/2 bg-blue-400 rounded-tl-[100px]"></div>
                 </div>
 
-                <div className="z-10 w-full max-w-2xl">
-                  <h2 className="text-3xl font-bold mb-10 text-center">
-                    목차 안내
-                  </h2>
-
-                  <div className="grid grid-cols-2 gap-6">
-                    <div>
-                      {slides[0].content
-                        .slice(0, 4)
-                        .map((item: { number: string; text: string }) => (
-                          <div
-                            key={item.number}
-                            className="mb-4 flex items-center"
-                          >
-                            <div className="text-blue-500 font-semibold mr-3">
-                              {item.number}.
-                            </div>
-                            <div className="text-gray-800">{item.text}</div>
-                          </div>
-                        ))}
-                    </div>
-                    <div>
-                      {slides[0].content
-                        .slice(4)
-                        .map((item: { number: string; text: string }) => (
-                          <div
-                            key={item.number}
-                            className="mb-4 flex items-center"
-                          >
-                            <div className="text-blue-500 font-semibold mr-3">
-                              {item.number}.
-                            </div>
-                            <div className="text-gray-800">{item.text}</div>
-                          </div>
-                        ))}
-                    </div>
-                  </div>
-                </div>
-
-                {/* 이미지 요소 (기타와 악보) */}
-                <div className="absolute bottom-0 right-0 w-1/3">
-                  <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
-                    <circle
-                      cx="150"
-                      cy="100"
-                      r="50"
-                      fill="#3B82F6"
-                      opacity="0.7"
-                    />
-                  </svg>
-                </div>
+                <span>피피티 내용</span>
               </div>
             )}
 
@@ -487,10 +400,12 @@ const PresentationRoom = () => {
         </div>
         <div className="flex items-center justify-between bg-white p-4 mt-4 shadow-md rounded-lg">
           <div className="flex flex-col gap-1">
-            <span className="font-bold">발표자 : 이지훈</span>
-            <span className="text-sm text-gray-500">팀원 : 팀원1, 팀원2</span>
+            <span className="font-bold">발표자 : {roomData?.name}</span>
             <span className="text-sm text-gray-500">
-              발표 주제 : 프론트엔드 아키텍처 발표
+              팀원 : {roomData?.team.join(", ")}
+            </span>
+            <span className="text-sm text-gray-500">
+              발표 설명 : {roomData?.description}
             </span>
           </div>
           <button className="bg-red-500 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors hover:bg-red-600 cursor-pointer">
@@ -508,18 +423,17 @@ const PresentationRoom = () => {
             >
               <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
             </svg>
-            <span className="text-xl font-bold">100</span>
+            <span className="text-xl font-bold">{roomData?.emojiCount}</span>
           </button>
         </div>
       </div>
 
-      {/* 채팅 영역 - 오른쪽 1/3 */}
       <div className="w-1/3 h-full p-4 flex flex-col">
         <div className="mb-4 flex gap-2">
           <button
-            onClick={() => setActiveTab("recent")}
+            onClick={() => setActiveTab("CREATEDAT")}
             className={`flex-1 ${
-              activeTab === "recent"
+              activeTab === "CREATEDAT"
                 ? "bg-blue-500 text-white"
                 : "bg-gray-200 text-gray-700"
             } rounded py-2 text-sm cursor-pointer`}
@@ -527,9 +441,9 @@ const PresentationRoom = () => {
             최신순
           </button>
           <button
-            onClick={() => setActiveTab("liked")}
+            onClick={() => setActiveTab("EMOJI")}
             className={`flex-1 ${
-              activeTab === "liked"
+              activeTab === "EMOJI"
                 ? "bg-blue-500 text-white"
                 : "bg-gray-200 text-gray-700"
             } rounded py-2 text-sm cursor-pointer`}
@@ -537,9 +451,9 @@ const PresentationRoom = () => {
             공감순
           </button>
           <button
-            onClick={() => setActiveTab("mine")}
+            onClick={() => setActiveTab("MYQUESTION")}
             className={`flex-1 ${
-              activeTab === "mine"
+              activeTab === "MYQUESTION"
                 ? "bg-blue-500 text-white"
                 : "bg-gray-200 text-gray-700"
             } rounded py-2 text-sm cursor-pointer`}
@@ -547,68 +461,27 @@ const PresentationRoom = () => {
             내 질문
           </button>
         </div>
-
         <div className="flex-grow bg-white rounded-lg shadow-md p-4 flex flex-col">
           <div className="flex-grow overflow-auto mb-4">
             {/* 질문 리스트 */}
             <div className="space-y-4">
-              {/* 질문 필터링 */}
-              {activeTab === "recent" &&
-                questions
-                  .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
-                  .map((question) => (
-                    <QuestionItem
-                      key={question.id}
-                      question={question}
-                      toggleReplies={toggleReplies}
-                      setReplyingTo={setReplyingTo}
-                    />
-                  ))}
-
-              {activeTab === "liked" &&
-                questions
-                  .sort((a, b) => b.likes - a.likes)
-                  .map((question) => (
-                    <QuestionItem
-                      key={question.id}
-                      question={question}
-                      toggleReplies={toggleReplies}
-                      setReplyingTo={setReplyingTo}
-                    />
-                  ))}
-
-              {activeTab === "mine" &&
-                questions
-                  .filter((q) => q.isMyQuestion)
-                  .map((question) => (
-                    <QuestionItem
-                      key={question.id}
-                      question={question}
-                      toggleReplies={toggleReplies}
-                      setReplyingTo={setReplyingTo}
-                    />
-                  ))}
-
-              {activeTab === "mine" &&
-                questions.filter((q) => q.isMyQuestion).length === 0 && (
-                  <div className="flex flex-col items-center justify-center h-40 text-gray-400">
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      className="h-12 w-12 mb-2"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={1}
-                        d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
-                      />
-                    </svg>
-                    <p>작성한 질문이 없습니다</p>
-                  </div>
-                )}
+              {filteredQuestions.map((question) => (
+                <QuestionItem
+                  key={question.questionId}
+                  question={{
+                    id: question.questionId,
+                    content: question.content,
+                    author: question.writer.nickname,
+                    timestamp: new Date(question.createdAt),
+                    isMyQuestion: false,
+                    likes: question.emojiCount,
+                    replies: [],
+                    showReplies: false,
+                  }}
+                  toggleReplies={toggleReplies}
+                  setReplyingTo={setReplyingTo}
+                />
+              ))}
             </div>
             <div ref={messagesEndRef} />
           </div>
