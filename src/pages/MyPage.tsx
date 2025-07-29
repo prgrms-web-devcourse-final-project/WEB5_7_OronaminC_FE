@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 type FilterType = "전체" | "생성한 방" | "참여한 방";
 type RoomStatus = "BEFORE_START" | "STARTED" | "ENDED";
@@ -18,8 +18,11 @@ interface Room {
 
 const MyPage = () => {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [activeFilter, setActiveFilter] = useState<FilterType>("전체");
   const [currentPage, setCurrentPage] = useState<number>(0);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [roomToDelete, setRoomToDelete] = useState<number | null>(null);
   const pageSize = 10;
 
   const { data: userInfo } = useQuery({
@@ -108,6 +111,39 @@ const MyPage = () => {
 
   const createNewRoom = () => {
     navigate("/create-room");
+  };
+
+  const handleDeleteClick = (roomId: number) => {
+    setRoomToDelete(roomId);
+    setShowDeleteModal(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!roomToDelete) return;
+
+    try {
+      const response = await fetch(`/api/rooms/${roomToDelete}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+
+      if (response.status === 204) {
+        // 성공 시 방 목록 다시 조회
+        queryClient.invalidateQueries({ queryKey: ["rooms"] });
+        setShowDeleteModal(false);
+        setRoomToDelete(null);
+      } else {
+        alert("방 삭제에 실패했습니다.");
+      }
+    } catch (error) {
+      console.error("방 삭제 오류:", error);
+      alert("방 삭제 중 오류가 발생했습니다.");
+    }
+  };
+
+  const handleDeleteCancel = () => {
+    setShowDeleteModal(false);
+    setRoomToDelete(null);
   };
 
   if (!userInfo) return null;
@@ -228,7 +264,10 @@ const MyPage = () => {
                           >
                             리포트
                           </button>
-                          <button className="border border-gray-300 text-red-700 bg-red-100 hover:bg-red-200 border-red-200 cursor-pointer px-4 py-1 rounded-md">
+                          <button
+                            onClick={() => handleDeleteClick(room.roomId)}
+                            className="border border-gray-300 text-red-700 bg-red-100 hover:bg-red-200 border-red-200 cursor-pointer px-4 py-1 rounded-md"
+                          >
                             삭제
                           </button>
                         </>
@@ -255,6 +294,32 @@ const MyPage = () => {
           </div>
         </div>
       </div>
+
+      {/* 삭제 확인 모달 */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 bg-white bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-96 shadow-lg border-gray-200">
+            <h3 className="text-lg font-semibold mb-4">방 삭제 확인</h3>
+            <p className="text-gray-600 mb-6">
+              정말로 이 방을 삭제하시겠습니까?
+            </p>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={handleDeleteCancel}
+                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 cursor-pointer"
+              >
+                취소
+              </button>
+              <button
+                onClick={handleDeleteConfirm}
+                className="px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600 cursor-pointer"
+              >
+                삭제
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
