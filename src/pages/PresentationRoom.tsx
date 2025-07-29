@@ -2,6 +2,12 @@ import { useState, useRef, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { useAuthStore } from "../store/authStore";
+import { Document, Page, pdfjs } from "react-pdf";
+import "react-pdf/dist/Page/AnnotationLayer.css";
+import "react-pdf/dist/Page/TextLayer.css";
+
+// PDF.js worker 설정
+pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
 interface Slide {
   title: string;
@@ -215,6 +221,12 @@ const PresentationRoom = () => {
     "CREATEDAT" | "EMOJI" | "MYQUESTION"
   >("CREATEDAT");
 
+  // PDF viewer 상태
+  const [numPages, setNumPages] = useState<number | null>(null);
+  const [pageNumber, setPageNumber] = useState<number>(1);
+  const [scale, setScale] = useState<number>(1.0);
+  const [pdfError, setPdfError] = useState<string | null>(null);
+
   const {
     data: questionsData,
     isLoading: isQuestionsLoading,
@@ -238,32 +250,7 @@ const PresentationRoom = () => {
     enabled: !!roomId,
   });
 
-  const [activeSlideIndex, setActiveSlideIndex] = useState<number>(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-
-  const slides = roomData?.slides || [
-    {
-      title: "목차 안내",
-      content: [
-        { number: "01", text: "프로젝트 소개" },
-        { number: "02", text: "프로젝트 구조" },
-        { number: "03", text: "주요 기능 설명" },
-        { number: "04", text: "서비스 시연" },
-        { number: "05", text: "학습 분석" },
-        { number: "06", text: "개선점과 향후 가능성" },
-        { number: "07", text: "토의/질문" },
-      ],
-      image: "기타와 악보가 있는 이미지",
-    },
-    {
-      title: "프로젝트 소개",
-      content: "프로젝트에 대한 상세한 설명입니다...",
-    },
-    {
-      title: "프로젝트 구조",
-      content: "프로젝트의 구조와 아키텍처에 대한 설명입니다...",
-    },
-  ];
 
   const sendQuestion = () => {
     if (currentQuestion.trim() === "") return;
@@ -277,7 +264,7 @@ const PresentationRoom = () => {
     setCurrentReply("");
   };
 
-  const toggleReplies = (questionId: number) => {
+  const toggleReplies = (_questionId: number) => {
     // TODO: 답변 표시 토글 로직
   };
 
@@ -295,16 +282,38 @@ const PresentationRoom = () => {
     }
   };
 
-  const prevSlide = () => {
-    if (activeSlideIndex > 0) {
-      setActiveSlideIndex(activeSlideIndex - 1);
-    }
+
+
+  // PDF viewer 함수들
+  const onDocumentLoadSuccess = ({ numPages }: { numPages: number }) => {
+    setNumPages(numPages);
+    setPageNumber(1);
+    setPdfError(null);
   };
 
-  const nextSlide = () => {
-    if (activeSlideIndex < slides.length - 1) {
-      setActiveSlideIndex(activeSlideIndex + 1);
-    }
+  const onDocumentLoadError = (error: Error) => {
+    console.error('PDF 로드 오류:', error);
+    setPdfError('PDF 파일을 로드할 수 없습니다.');
+  };
+
+  const goToPrevPage = () => {
+    setPageNumber(prev => Math.max(prev - 1, 1));
+  };
+
+  const goToNextPage = () => {
+    setPageNumber(prev => Math.min(prev + 1, numPages || 1));
+  };
+
+  const zoomIn = () => {
+    setScale(prev => Math.min(prev + 0.2, 3.0));
+  };
+
+  const zoomOut = () => {
+    setScale(prev => Math.max(prev - 0.2, 0.5));
+  };
+
+  const resetZoom = () => {
+    setScale(1.0);
   };
 
   useEffect(() => {
@@ -327,74 +336,90 @@ const PresentationRoom = () => {
       {/* 발표 영역 - 왼쪽 2/3 */}
       <div className="w-2/3 h-full p-4 flex flex-col">
         <div className="flex-grow bg-white rounded-lg shadow-md p-6 flex flex-col">
-          <div className="flex-grow flex items-center justify-center border-2 border-gray-100 rounded-lg p-4 bg-gray-50 relative">
-            {activeSlideIndex === 0 && (
-              <div className="w-full h-full flex flex-col items-center justify-center relative">
-                <div className="absolute top-0 left-0 w-full h-full">
-                  <div className="absolute top-0 left-0 w-1/3 h-full bg-orange-400 rounded-br-[200px]"></div>
-                  <div className="absolute bottom-0 right-0 w-1/3 h-1/2 bg-blue-400 rounded-tl-[100px]"></div>
+          {/* PDF Viewer 영역 */}
+          <div className="flex-grow flex flex-col border-2 border-gray-100 rounded-lg bg-gray-50 relative overflow-hidden">
+            {/* PDF 컨트롤 버튼 */}
+            <div className="flex items-center justify-between p-3 bg-white border-b border-gray-200">
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={goToPrevPage}
+                  disabled={pageNumber <= 1}
+                  className="bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 text-white px-3 py-1 rounded text-sm"
+                >
+                  이전
+                </button>
+                <span className="text-sm text-gray-600">
+                  {pageNumber} / {numPages || 0}
+                </span>
+                <button
+                  onClick={goToNextPage}
+                  disabled={pageNumber >= (numPages || 0)}
+                  className="bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 text-white px-3 py-1 rounded text-sm"
+                >
+                  다음
+                </button>
+              </div>
+              
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={zoomOut}
+                  className="bg-gray-500 hover:bg-gray-600 text-white px-2 py-1 rounded text-sm"
+                >
+                  -
+                </button>
+                <span className="text-sm text-gray-600 min-w-[60px] text-center">
+                  {Math.round(scale * 100)}%
+                </span>
+                <button
+                  onClick={zoomIn}
+                  className="bg-gray-500 hover:bg-gray-600 text-white px-2 py-1 rounded text-sm"
+                >
+                  +
+                </button>
+                <button
+                  onClick={resetZoom}
+                  className="bg-gray-500 hover:bg-gray-600 text-white px-2 py-1 rounded text-sm"
+                >
+                  리셋
+                </button>
+              </div>
+            </div>
+
+            {/* PDF 내용 */}
+            <div className="flex-grow flex items-center justify-center p-4 overflow-auto">
+              {pdfError ? (
+                <div className="text-center text-red-500">
+                  <p>{pdfError}</p>
+                  <p className="text-sm text-gray-500 mt-2">
+                    PDF URL: {roomData?.presignedUrl}
+                  </p>
                 </div>
-
-                <span>피피티 내용</span>
-              </div>
-            )}
-
-            {activeSlideIndex === 1 && (
-              <div className="w-full h-full flex flex-col items-center justify-center">
-                <h2 className="text-3xl font-bold mb-6">{slides[1].title}</h2>
-                {/* <p className="text-center max-w-xl">{slides[1].content}</p> */}
-              </div>
-            )}
-
-            {activeSlideIndex === 2 && (
-              <div className="w-full h-full flex flex-col items-center justify-center">
-                <h2 className="text-3xl font-bold mb-6">{slides[2].title}</h2>
-                {/* <p className="text-center max-w-xl">{slides[2].content}</p> */}
-              </div>
-            )}
-
-            {/* 슬라이드 네비게이션 버튼 */}
-            <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-2">
-              <button
-                onClick={prevSlide}
-                className="bg-gray-200 hover:bg-gray-300 rounded-full p-2"
-                disabled={activeSlideIndex === 0}
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="h-5 w-5"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
+              ) : roomData?.presignedUrl ? (
+                <Document
+                  file={roomData.presignedUrl}
+                  onLoadSuccess={onDocumentLoadSuccess}
+                  onLoadError={onDocumentLoadError}
+                  loading={
+                    <div className="flex items-center justify-center">
+                      <div className="text-gray-500">PDF 로딩 중...</div>
+                    </div>
+                  }
                 >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M15 19l-7-7 7-7"
+                  <Page
+                    pageNumber={pageNumber}
+                    scale={scale}
+                    loading={
+                      <div className="flex items-center justify-center">
+                        <div className="text-gray-500">페이지 로딩 중...</div>
+                      </div>
+                    }
                   />
-                </svg>
-              </button>
-              <button
-                onClick={nextSlide}
-                className="bg-gray-200 hover:bg-gray-300 rounded-full p-2"
-                disabled={activeSlideIndex === slides.length - 1}
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="h-5 w-5"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M9 5l7 7-7 7"
-                  />
-                </svg>
-              </button>
+                </Document>
+              ) : (
+                <div className="text-center text-gray-500">
+                  <p>PDF 파일이 없습니다.</p>
+                </div>
+              )}
             </div>
           </div>
         </div>

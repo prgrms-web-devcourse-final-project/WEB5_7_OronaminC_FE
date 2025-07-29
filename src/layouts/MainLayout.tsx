@@ -8,7 +8,7 @@ import {
 import LoginModal from "../components/LoginModal";
 import { useState } from "react";
 import { useAuthStore } from "../store/authStore";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 
 const MainLayout = () => {
   const location = useLocation();
@@ -69,6 +69,30 @@ const MainLayout = () => {
     enabled: !!roomId,
   });
 
+  const startRoomMutation = useMutation({
+    mutationFn: async (roomId: string) => {
+      const response = await fetch(`/api/rooms/${roomId}/status`, {
+        method: "PATCH",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error("방 시작 실패");
+      }
+
+      return response.json();
+    },
+    onSuccess: (_data, roomId) => {
+      window.location.href = `/room/${roomId}/report`;
+    },
+    onError: (error: Error) => {
+      console.error("방 시작 실패:", error);
+    },
+  });
+
   console.log(user, roomData);
 
   return (
@@ -91,14 +115,27 @@ const MainLayout = () => {
               참가자: {roomData?.participantCount} /{" "}
               {roomData?.participantLimit}
             </span>
-
-            <Link
-              to="/"
-              onClick={handleLogout}
-              className="bg-red-500 hover:bg-red-600 text-white px-4 py-1 rounded-full text-sm font-medium transition-colors"
-            >
-              나가기
-            </Link>
+            {roomData?.isHost && roomData?.roomStatus === "BEFORE_START" ? (
+              <button
+                onClick={() => {
+                  if (roomId) {
+                    startRoomMutation.mutate(roomId);
+                  }
+                }}
+                disabled={startRoomMutation.isPending}
+                className="bg-red-500 hover:bg-red-600 text-white px-4 py-1 rounded-full text-sm font-medium transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {startRoomMutation.isPending ? "시작 중..." : "시작하기"}
+              </button>
+            ) : (
+              <Link
+                to="/"
+                onClick={handleLogout}
+                className="bg-red-500 hover:bg-red-600 text-white px-4 py-1 rounded-full text-sm font-medium transition-colors"
+              >
+                나가기
+              </Link>
+            )}
           </div>
         ) : (
           <div className="flex items-center gap-2">
