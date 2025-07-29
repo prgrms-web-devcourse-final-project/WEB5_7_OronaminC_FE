@@ -9,6 +9,7 @@ import LoginModal from "../components/LoginModal";
 import { useState } from "react";
 import { useAuthStore } from "../store/authStore";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import UserRoomModal from "../components/UserRoomModal";
 
 const MainLayout = () => {
   const location = useLocation();
@@ -18,6 +19,7 @@ const MainLayout = () => {
   const { roomId } = useParams<{ roomId: string }>();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isUserModalOpen, setIsUserModalOpen] = useState(false);
   const [roomCode, setRoomCode] = useState("");
   const [type, setType] = useState<"user" | "guest">("user");
 
@@ -30,6 +32,14 @@ const MainLayout = () => {
   const closeModal = () => {
     setIsModalOpen(false);
     setRoomCode("");
+  };
+
+  const openUserModal = () => {
+    setIsUserModalOpen(true);
+  };
+
+  const closeUserModal = () => {
+    setIsUserModalOpen(false);
   };
 
   const { data: roomData } = useQuery({
@@ -75,7 +85,11 @@ const MainLayout = () => {
   });
 
   const handleLogout = async () => {
-    if (roomData?.isHost) {
+    if (
+      location.pathname.startsWith("/room") &&
+      !location.pathname.endsWith("/report") &&
+      roomData?.isHost
+    ) {
       navigate("/mypage");
     } else {
       try {
@@ -138,7 +152,7 @@ const MainLayout = () => {
             ) : (
               <button
                 onClick={handleLogout}
-                className="bg-red-500 hover:bg-red-600 text-white px-4 py-1 rounded-full text-sm font-medium transition-colors"
+                className="bg-red-500 cursor-pointer hover:bg-red-600 text-white px-4 py-1 rounded-full text-sm font-medium transition-colors"
               >
                 나가기
               </button>
@@ -167,12 +181,12 @@ const MainLayout = () => {
               </button>
             )}
             {location.pathname === "/mypage" && (
-              <Link
-                to="/room/13"
-                className="bg-blue-500 hover:bg-blue-600 text-white px-2 py-2 rounded-md text-sm font-medium transition-colors"
+              <button
+                onClick={openUserModal}
+                className="bg-blue-500 cursor-pointer hover:bg-blue-600 text-white px-2 py-2 rounded-md text-sm font-medium transition-colors"
               >
                 초대 코드로 입장
-              </Link>
+              </button>
             )}
           </div>
         )}
@@ -192,6 +206,7 @@ const MainLayout = () => {
         initialRoomCode={roomCode}
         type={type}
       />
+      <UserRoomModal isOpen={isUserModalOpen} onClose={closeUserModal} />
     </div>
   );
 };
