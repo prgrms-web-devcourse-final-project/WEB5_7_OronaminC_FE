@@ -157,17 +157,17 @@ const MyPage = () => {
               <span className="text-lg font-bold">
                 {userInfo.nickname}님의 활동
               </span>
-              <div className="flex justify-between mt-4">
-                <div className="text-center">
-                  <div className="flex flex-col bg-blue-100 text-blue-700 w-34 h-20 rounded-md flex items-center justify-center text-xl font-semibold">
+              <div className="flex justify-between mt-4 gap-2">
+                <div className="text-center w-1/2">
+                  <div className="flex flex-col bg-blue-100 text-blue-700 h-20 rounded-md flex items-center justify-center text-xl font-semibold">
                     <span className="text-xl font-semibold">
                       {userInfo.joinedRoomCount}
                     </span>
                     <span className="text-xs font-medium">참여한 방</span>
                   </div>
                 </div>
-                <div className="text-center">
-                  <div className="flex flex-col bg-green-100 text-green-700 w-34 h-20 rounded-md flex items-center justify-center text-xl font-semibold">
+                <div className="text-center w-1/2">
+                  <div className="flex flex-col bg-green-100 text-green-700 h-20 rounded-md flex items-center justify-center text-xl font-semibold">
                     <span className="text-xl font-semibold">
                       {userInfo.createdRoomCount}
                     </span>
