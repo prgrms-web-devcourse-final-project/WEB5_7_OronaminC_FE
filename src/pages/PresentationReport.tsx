@@ -1,117 +1,79 @@
-import { useState } from "react";
 import { useParams, Link } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 
-type Question = {
-  id: number;
-  rank: number;
-  content: string;
-  likes: number;
-  answers: {
-    id: number;
-    content: string;
+type ReportData = {
+  roomId: number;
+  title: string;
+  totalView: number;
+  totalQuestions: number;
+  answerRate: number;
+  totalEmojis: number;
+  topQnA: {
+    question: string;
+    emojiCount: number;
+    answers: string[];
   }[];
 };
 
 const PresentationReport = () => {
-  // roomId를 사용하여 실제 API 호출 시 사용할 수 있습니다.
   const { roomId } = useParams<{ roomId: string }>();
-  console.log(`Report for presentation room: ${roomId}`);
 
-  const [reportData] = useState<{
-    title: string;
-    subtitle: string;
-    date: string;
-    time: string;
-    presenter: string;
-    stats: {
-      participants: number;
-      questions: number;
-      satisfaction: number;
-      likes: number;
-    };
-    topQuestions: Question[];
-  }>({
-    title: "발표 리포트",
-    subtitle: "프론트엔드 개발 트렌드 2025",
-    date: "2025.07.01",
-    time: "오후 2:17",
-    presenter: "김개발",
-    stats: {
-      participants: 41,
-      questions: 29,
-      satisfaction: 78,
-      likes: 19,
+  const {
+    data: reportData,
+    isLoading,
+    error,
+  } = useQuery<ReportData>({
+    queryKey: ["presentationReport", roomId],
+    queryFn: async () => {
+      const response = await fetch(`/api/rooms/${roomId}/report`, {
+        credentials: "include",
+      });
+      if (!response.ok) {
+        throw new Error("리포트 데이터를 가져오는데 실패했습니다");
+      }
+      return response.json();
     },
-    topQuestions: [
-      {
-        id: 1,
-        rank: 1,
-        content:
-          "React 18의 새로운 기능 중에서 가장 주목할 만한 것은 무엇인가요?",
-        likes: 47,
-        answers: [
-          {
-            id: 1,
-            content:
-              "답변 1:\n새로운 18에서 가장 주목할 만한 기능은 Concurrent Features입니다. 특히 Suspense의 확장과 Automatic Batching 기능이 많은 향상이 될 것 같습니다.",
-          },
-          {
-            id: 2,
-            content:
-              "답변 2:\nuseTransition과 useDeferredValue 등도 매우 유용합니다. 사용자 경험을 크게 개선시킬 수 있어요.",
-          },
-        ],
-      },
-      {
-        id: 2,
-        rank: 2,
-        content:
-          "Next.js 13의 App Router와 기존 Pages Router의 차이점을 설명해주세요.",
-        likes: 34,
-        answers: [
-          {
-            id: 1,
-            content:
-              "답변 1:\nApp Router는 React Server Components를 활용하여 더 나은 성능과 개발자 경험을 제공합니다.",
-          },
-          {
-            id: 2,
-            content:
-              "답변 2:\n파일 기반 라우팅이 더욱 직관적으로 개선되었고, 레이아웃 시스템이 발전되었습니다.",
-          },
-          {
-            id: 3,
-            content:
-              "답변 3:\n서버와 클라이언트 컴포넌트를 자연스럽게 쉽게 구분하였고, Server Actions도 매우 유용합니다.",
-          },
-        ],
-      },
-      {
-        id: 3,
-        rank: 3,
-        content: "TypeScript와 JavaScript 중 어떤 것을 선택해야 하나요?",
-        likes: 28,
-        answers: [
-          {
-            id: 1,
-            content:
-              "답변:\n팀의 규모와 구조에 달려있어 간단히 말하긴 힘들지만, 큰 규모 프로젝트라면 TypeScript를 추천합니다.\n디버그 단계에서 재질지 않고, 공식화 코드 작성에서 강점이 있습니다.",
-          },
-        ],
-      },
-    ],
+    enabled: !!roomId,
   });
+
+  if (isLoading) {
+    return (
+      <div className="py-8 px-20 bg-gray-50 flex justify-center items-center min-h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+          <p className="text-gray-600">리포트를 불러오는 중...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="py-8 px-20 bg-gray-50 flex justify-center items-center min-h-screen">
+        <div className="text-center">
+          <p className="text-red-600 mb-4">리포트를 불러오는데 실패했습니다.</p>
+          <Link
+            to="/mypage"
+            className="text-blue-600 hover:text-blue-800 underline"
+          >
+            마이페이지로 돌아가기
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  if (!reportData) {
+    return null;
+  }
 
   return (
     <div className="py-8 px-20 bg-gray-50">
-      <div className="flex flex-col mb-6 ">
+      <div className="flex flex-col mb-6">
         <div className="text-3xl font-bold mb-2">{reportData.title}</div>
         <div>
           <div className="text-sm text-gray-500">
-            {reportData.subtitle}
-            <div>
-              {reportData.date} • {reportData.time} • {reportData.presenter}
-            </div>
+            발표 리포트 • Room ID: {reportData.roomId}
           </div>
         </div>
       </div>
@@ -136,9 +98,9 @@ const PresentationReport = () => {
             </svg>
           </div>
           <div>
-            <div className="text-sm text-gray-500">총 참여자</div>
+            <div className="text-sm text-gray-500">총 조회수</div>
             <div className="text-2xl font-bold text-blue-600">
-              {reportData.stats.participants}
+              {reportData.totalView}
             </div>
           </div>
         </div>
@@ -161,9 +123,9 @@ const PresentationReport = () => {
             </svg>
           </div>
           <div>
-            <div className="text-sm text-gray-500">발표 질의</div>
+            <div className="text-sm text-gray-500">총 질문수</div>
             <div className="text-2xl font-bold text-amber-600">
-              {reportData.stats.questions}
+              {reportData.totalQuestions}
             </div>
           </div>
         </div>
@@ -186,9 +148,9 @@ const PresentationReport = () => {
             </svg>
           </div>
           <div>
-            <div className="text-sm text-gray-500">만족도</div>
+            <div className="text-sm text-gray-500">답변률</div>
             <div className="text-2xl font-bold text-green-600">
-              {reportData.stats.satisfaction}%
+              {reportData.answerRate}%
             </div>
           </div>
         </div>
@@ -211,9 +173,9 @@ const PresentationReport = () => {
             </svg>
           </div>
           <div>
-            <div className="text-sm text-gray-500">좋아요</div>
+            <div className="text-sm text-gray-500">총 이모지</div>
             <div className="text-2xl font-bold text-pink-600">
-              {reportData.stats.likes}
+              {reportData.totalEmojis}
             </div>
           </div>
         </div>
@@ -223,29 +185,29 @@ const PresentationReport = () => {
       <div className="mb-6">
         <h2 className="text-xl font-bold mb-4">공감 많은 질문 TOP 3</h2>
         <div className="space-y-4">
-          {reportData.topQuestions.map((question) => (
+          {reportData.topQnA.map((qna, index) => (
             <div
-              key={question.id}
+              key={index}
               className="bg-white rounded-lg shadow-sm overflow-hidden"
             >
               <div className="flex items-start p-4 border-b">
                 <div className="bg-amber-100 rounded-full h-10 w-10 flex items-center justify-center text-amber-600 font-bold mr-3">
-                  {question.rank}
+                  {index + 1}
                 </div>
                 <div className="flex-grow">
-                  <div className="font-medium">{question.content}</div>
+                  <div className="font-medium">{qna.question}</div>
                   <div className="text-sm text-gray-500">
-                    공감 {question.likes}
+                    이모지 {qna.emojiCount}
                   </div>
                 </div>
               </div>
               <div className="p-4 bg-gray-50">
-                {question.answers.map((answer) => (
+                {qna.answers.map((answer, answerIndex) => (
                   <div
-                    key={answer.id}
+                    key={answerIndex}
                     className="mb-3 whitespace-pre-wrap text-sm"
                   >
-                    {answer.content}
+                    답변 {answerIndex + 1}: {answer}
                   </div>
                 ))}
               </div>

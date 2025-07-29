@@ -8,11 +8,12 @@ import {
 import LoginModal from "../components/LoginModal";
 import { useState } from "react";
 import { useAuthStore } from "../store/authStore";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 const MainLayout = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { user, isAuthenticated, logout } = useAuthStore();
   const { roomId } = useParams<{ roomId: string }>();
 
@@ -29,31 +30,6 @@ const MainLayout = () => {
   const closeModal = () => {
     setIsModalOpen(false);
     setRoomCode("");
-  };
-
-  const handleLogout = async () => {
-    try {
-      if (isAuthenticated) {
-        const response = await fetch("/api/auth/logout", {
-          method: "POST",
-          credentials: "include",
-          headers: {
-            "Content-Type": "application/json",
-          },
-        });
-
-        if (response.status === 204) {
-          logout();
-          navigate("/");
-        }
-      } else {
-        logout();
-        navigate("/");
-      }
-    } catch {
-      logout();
-      navigate("/");
-    }
   };
 
   const { data: roomData } = useQuery({
@@ -77,7 +53,12 @@ const MainLayout = () => {
         headers: {
           "Content-Type": "application/json",
         },
+        body: JSON.stringify({ roomStatus: "STARTED" }),
       });
+
+      if (response.status === 204) {
+        queryClient.invalidateQueries({ queryKey: ["room", roomId] });
+      }
 
       if (!response.ok) {
         throw new Error("방 시작 실패");
@@ -85,15 +66,42 @@ const MainLayout = () => {
 
       return response.json();
     },
-    onSuccess: (_data, roomId) => {
-      console.log(roomId);
+    onSuccess: () => {
+      console.log("성공");
     },
     onError: (error: Error) => {
       console.error("방 시작 실패:", error);
     },
   });
 
-  console.log(user, roomData);
+  const handleLogout = async () => {
+    if (roomData?.isHost) {
+      navigate("/mypage");
+    } else {
+      try {
+        if (isAuthenticated) {
+          const response = await fetch("/api/auth/logout", {
+            method: "POST",
+            credentials: "include",
+            headers: {
+              "Content-Type": "application/json",
+            },
+          });
+
+          if (response.status === 204) {
+            logout();
+            navigate("/");
+          }
+        } else {
+          logout();
+          navigate("/");
+        }
+      } catch {
+        logout();
+        navigate("/");
+      }
+    }
+  };
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -128,13 +136,12 @@ const MainLayout = () => {
                 {startRoomMutation.isPending ? "시작 중..." : "시작하기"}
               </button>
             ) : (
-              <Link
-                to="/"
+              <button
                 onClick={handleLogout}
                 className="bg-red-500 hover:bg-red-600 text-white px-4 py-1 rounded-full text-sm font-medium transition-colors"
               >
                 나가기
-              </Link>
+              </button>
             )}
           </div>
         ) : (

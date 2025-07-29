@@ -31,6 +31,8 @@ const MyPage = () => {
       if (!response.ok) throw new Error("회원 정보 조회 실패");
       return response.json();
     },
+    staleTime: 0,
+    gcTime: 0,
   });
 
   const { data: roomsData } = useQuery({
@@ -52,6 +54,8 @@ const MyPage = () => {
       if (!response.ok) throw new Error("발표방 목록 조회 실패");
       return response.json();
     },
+    staleTime: 0,
+    gcTime: 0,
   });
 
   const rooms = roomsData?.content || [];
@@ -213,16 +217,22 @@ const MyPage = () => {
                     </p>
                   </div>
                   <div className="flex gap-2">
-                    {room.status === "ENDED" && (
-                      <>
-                        <button className="border border-gray-300 text-blue-700 bg-blue-100 hover:bg-blue-200 border-blue-200 cursor-pointer px-4 py-1 rounded-md">
-                          리포트
-                        </button>
-                        <button className="border border-gray-300 text-red-700 bg-red-100 hover:bg-red-200 border-red-200 cursor-pointer px-4 py-1 rounded-md">
-                          삭제
-                        </button>
-                      </>
-                    )}
+                    {room.status === "ENDED" &&
+                      room.participationType === "CREATED" && (
+                        <>
+                          <button
+                            onClick={() =>
+                              navigate(`/room/${room.roomId}/report`)
+                            }
+                            className="border border-gray-300 text-blue-700 bg-blue-100 hover:bg-blue-200 border-blue-200 cursor-pointer px-4 py-1 rounded-md"
+                          >
+                            리포트
+                          </button>
+                          <button className="border border-gray-300 text-red-700 bg-red-100 hover:bg-red-200 border-red-200 cursor-pointer px-4 py-1 rounded-md">
+                            삭제
+                          </button>
+                        </>
+                      )}
                     {(room.status === "BEFORE_START" ||
                       room.status === "STARTED") && (
                       <Link
