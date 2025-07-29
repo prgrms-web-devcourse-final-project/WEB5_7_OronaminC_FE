@@ -6,6 +6,8 @@ import "react-pdf/dist/Page/AnnotationLayer.css";
 import "react-pdf/dist/Page/TextLayer.css";
 import { QuestionItem } from "./question";
 import { PdfViewer } from "./pdfViewer";
+import { Client } from "@stomp/stompjs";
+import SockJS from "sockjs-client";
 
 export interface Question {
   id: number;
@@ -50,6 +52,9 @@ const PresentationRoom = () => {
   const [currentReply, setCurrentReply] = useState<string>("");
   const [replyingTo, setReplyingTo] = useState<number | null>(null);
   const { user } = useAuthStore();
+  const [participantCount, setParticipantCount] = useState<number>(0);
+  const [isConnected, setIsConnected] = useState<boolean>(false);
+  const stompClientRef = useRef<Client | null>(null);
 
   const [activeTab, setActiveTab] = useState<
     "CREATEDAT" | "EMOJI" | "MYQUESTION"
@@ -92,8 +97,9 @@ const PresentationRoom = () => {
     setCurrentReply("");
   };
 
-  const toggleReplies = (_questionId: number) => {
+  const toggleReplies = (questionId: number) => {
     // TODO: 답변 표시 토글 로직
+    console.log('Toggle replies for question:', questionId);
   };
 
   const handleQuestionKeyPress = (e: React.KeyboardEvent) => {
@@ -109,6 +115,67 @@ const PresentationRoom = () => {
       sendReply();
     }
   };
+
+  // 웹소켓 연결 및 방 참여
+  useEffect(() => {
+    if (!roomId) return;
+
+    const connectWebSocket = () => {
+      // SockJS 소켓 생성
+      const socket = new SockJS("http://15.165.241.81:8080/ws", null, {
+        withCredentials: true,
+      });
+
+      // STOMP 클라이언트 생성
+      const stompClient = new Client({
+        webSocketFactory: () => socket,
+        debug: (str) => {
+          console.log('STOMP Debug:', str);
+        },
+        onConnect: () => {
+          console.log('STOMP 연결 성공');
+          setIsConnected(true);
+
+          // 발표방 참여 요청
+          stompClient.publish({
+            destination: `/app/rooms/${roomId}/join`,
+            body: JSON.stringify({}),
+          });
+
+          // 발표방 참여자 수 구독
+          stompClient.subscribe(`/topic/rooms/${roomId}/join`, (message) => {
+            try {
+              const data = JSON.parse(message.body);
+              console.log('참여자 수 업데이트:', data);
+              setParticipantCount(data.participantCount);
+            } catch (error) {
+              console.error('참여자 수 파싱 오류:', error);
+            }
+          });
+        },
+        onDisconnect: () => {
+          console.log('STOMP 연결 해제');
+          setIsConnected(false);
+        },
+        onStompError: (frame) => {
+          console.error('STOMP 오류:', frame.headers['message']);
+          console.error('세부사항:', frame.body);
+        },
+      });
+
+      stompClientRef.current = stompClient;
+      stompClient.activate();
+    };
+
+    connectWebSocket();
+
+    // 컴포넌트 언마운트 시 연결 해제
+    return () => {
+      if (stompClientRef.current) {
+        stompClientRef.current.deactivate();
+      }
+    };
+  }, [roomId]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -129,6 +196,23 @@ const PresentationRoom = () => {
       <PdfViewer roomId={roomId || ""} />
 
       <div className="w-1/3 h-full p-4 flex flex-col">
+        {/* 연결 상태 및 참여자 수 표시 */}
+        <div className="mb-4 flex justify-between items-center">
+          <div className="flex items-center gap-2">
+            <div className={`w-2 h-2 rounded-full ${
+              isConnected ? 'bg-green-500' : 'bg-red-500'
+            }`}></div>
+            <span className="text-sm text-gray-600">
+              {isConnected ? '연결됨' : '연결 중...'}
+            </span>
+            {participantCount > 0 && (
+              <span className="text-sm text-gray-600">
+                참여자: {participantCount}명
+              </span>
+            )}
+          </div>
+        </div>
+        
         <div className="mb-4 flex gap-2">
           <button
             onClick={() => setActiveTab("CREATEDAT")}
