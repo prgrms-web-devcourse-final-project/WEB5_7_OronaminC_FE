@@ -86,7 +86,7 @@ const MainLayout = () => {
       return response.json();
     },
     onSuccess: (_data, roomId) => {
-      window.location.href = `/room/${roomId}/report`;
+      console.log(roomId);
     },
     onError: (error: Error) => {
       console.error("방 시작 실패:", error);

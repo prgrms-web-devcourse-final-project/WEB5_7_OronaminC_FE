@@ -6,19 +6,17 @@ const Home = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalType, setModalType] = useState<"user" | "guest">("guest");
   const [modalRoomCode, setModalRoomCode] = useState("");
-  
+
   const openModal = (code: string, type: "user" | "guest") => {
     setModalRoomCode(code);
     setModalType(type);
     setIsModalOpen(true);
   };
-  
+
   const closeModal = () => {
     setIsModalOpen(false);
     setModalRoomCode("");
   };
-
-
 
   return (
     <div className="flex-1 flex flex-col items-center justify-center p-4 gap-20">
@@ -98,7 +96,7 @@ const Home = () => {
           </div>
         </div>
       </section>
-      
+
       <LoginModal
         isOpen={isModalOpen}
         onClose={closeModal}

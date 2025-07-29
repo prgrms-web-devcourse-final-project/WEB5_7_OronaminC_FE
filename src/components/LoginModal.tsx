@@ -18,22 +18,73 @@ const LoginModal = ({
   type,
 }: LoginModalProps) => {
   const navigate = useNavigate();
-  const { setUser } = useAuthStore();
+  const { setUser, logout, isAuthenticated } = useAuthStore();
 
   const [nickname, setNickname] = useState("");
   const [roomCode, setRoomCode] = useState(initialRoomCode);
   const [showTooltip, setShowTooltip] = useState(false);
 
+  const handleLogout = async () => {
+    try {
+      if (isAuthenticated) {
+        const response = await fetch("/api/auth/logout", {
+          method: "POST",
+          credentials: "include",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        });
+
+        if (response.status === 204) {
+          logout();
+        }
+      } else {
+        logout();
+      }
+    } catch {
+      logout();
+    }
+  };
+
+  const handleRoomEntry = async (roomCode: string) => {
+    if (!roomCode.trim()) return;
+    try {
+      const response = await fetch("/api/rooms/code", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify({ secretCode: roomCode.trim() }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const roomId = data.roomId;
+
+        onClose();
+        navigate(`/room/${roomId}`);
+      } else {
+        console.error("방 입장 요청 실패:", response.status);
+        alert("방 입장에 실패했습니다. 다시 시도해 주세요.");
+      }
+    } catch (error) {
+      console.error("API 요청 중 오류 발생:", error);
+      alert("방 입장에 실패했습니다. 다시 시도해 주세요.");
+      handleLogout();
+    }
+  };
+
   const guestLoginMutation = useMutate("/api/auth/guest", "POST", {
     onSuccess: (data) => {
       const userData = data as User;
       setUser(userData);
-      navigate(`/room/${roomCode}`);
-      onClose();
+      handleRoomEntry(roomCode);
     },
     onError: (error) => {
       console.error("게스트 로그인 오류:", error);
       alert("게스트 로그인에 실패했습니다. 다시 시도해 주세요.");
+      handleLogout();
     },
   });
 
