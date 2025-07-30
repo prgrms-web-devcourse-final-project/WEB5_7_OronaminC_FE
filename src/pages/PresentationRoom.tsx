@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { useParams } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuthStore } from "../store/authStore";
 import "react-pdf/dist/Page/AnnotationLayer.css";
 import "react-pdf/dist/Page/TextLayer.css";
@@ -8,6 +8,31 @@ import { QuestionItem } from "./question";
 import { PdfViewer } from "./pdfViewer";
 import { Client } from "@stomp/stompjs";
 import SockJS from "sockjs-client";
+
+interface Slide {
+  title: string;
+  content: Array<{
+    number: string;
+    text: string;
+  }>;
+}
+
+export interface RoomData {
+  title: string;
+  description: string;
+  name: string;
+  team: string[];
+  roomCode: string;
+  presignedUrl: string;
+  participantCount: number;
+  participantLimit: number;
+  emojiCount: number;
+  isHost: boolean;
+  isTeamMember: boolean;
+  roomStatus: "BEFORE_START" | "STARTED" | "ENDED";
+  createdAt: string;
+  slides?: Slide[];
+}
 
 export interface Question {
   id: number;
@@ -37,6 +62,34 @@ interface QuestionsResponse {
   questions: QuestionItem[];
 }
 
+interface QuestionCreateEvent {
+  event: "CREATE";
+  questionId: number;
+  content: string;
+  emojiCount: number;
+  hasAnswer: boolean;
+  isEmojied: boolean;
+  writer: {
+    memberId: number;
+    nickname: string;
+  };
+  createdAt: string;
+}
+
+interface AnswerCreateEvent {
+  event: "CREATE";
+  answerId: number;
+  questionId: number;
+  content: string;
+  emojiCount: number;
+  isEmojied: boolean;
+  writer: {
+    memberId: number;
+    nickname: string;
+  };
+  createdAt: string;
+}
+
 interface Reply {
   id: number;
   content: string;
@@ -46,15 +99,58 @@ interface Reply {
   likes: number;
 }
 
+interface Answer {
+  answerId: number;
+  questionId: number;
+  content: string;
+  emojiCount: number;
+  isEmojied: boolean;
+  writer: {
+    memberId: number;
+    nickname: string;
+  };
+  createdAt: string;
+}
+
+interface AnswersResponse {
+  answers: Answer[];
+}
+
 const PresentationRoom = () => {
   const { roomId } = useParams<{ roomId: string }>();
   const [currentQuestion, setCurrentQuestion] = useState<string>("");
   const [currentReply, setCurrentReply] = useState<string>("");
   const [replyingTo, setReplyingTo] = useState<number | null>(null);
-  const { user } = useAuthStore();
   const [participantCount, setParticipantCount] = useState<number>(0);
   const [isConnected, setIsConnected] = useState<boolean>(false);
+  const { user } = useAuthStore();
+  const [isSubscribed, setIsSubscribed] = useState<boolean>(false);
   const stompClientRef = useRef<Client | null>(null);
+  const [realTimeQuestions, setRealTimeQuestions] = useState<QuestionItem[]>(
+    []
+  );
+  const [selectedQuestionId, setSelectedQuestionId] = useState<number | null>(
+    null
+  );
+  const [showAnswers, setShowAnswers] = useState<{ [key: number]: boolean }>(
+    {}
+  );
+
+  const {
+    data: roomData,
+    isLoading: isLoadingRoom,
+    isError: isErrorRoom,
+  } = useQuery<RoomData>({
+    queryKey: ["room", roomId],
+    queryFn: async () => {
+      const response = await fetch(`/api/rooms/${roomId}`, {
+        credentials: "include",
+      });
+      if (!response.ok) throw new Error("방 정보 조회 실패");
+      return response.json();
+    },
+    enabled: !!roomId,
+  });
 
   const [activeTab, setActiveTab] = useState<
     "CREATEDAT" | "EMOJI" | "MYQUESTION"
@@ -70,7 +166,7 @@ const PresentationRoom = () => {
       const params = new URLSearchParams({
         sort: activeTab.toUpperCase(),
         roomId: roomId || "",
-        memberId: user?.id?.toString() || "", // TODO: 실제 memberId로 교체 필요
+        memberId: user?.id?.toString() || "",
         size: "10",
       });
 
@@ -83,23 +179,91 @@ const PresentationRoom = () => {
     enabled: !!roomId,
   });
 
+  const {
+    data: answersData,
+    isLoading: isAnswersLoading,
+    refetch: refetchAnswers,
+  } = useQuery<AnswersResponse>({
+    queryKey: ["answers", roomId, selectedQuestionId],
+    queryFn: async () => {
+      if (!selectedQuestionId) throw new Error("질문 ID가 없습니다");
+
+      const response = await fetch(
+        `/api/rooms/${roomId}/questions/${selectedQuestionId}/answers`,
+        {
+          credentials: "include",
+        }
+      );
+      if (!response.ok) throw new Error("답변 조회 실패");
+      return response.json();
+    },
+    enabled: !!roomId && !!selectedQuestionId,
+  });
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const sendQuestion = () => {
-    if (currentQuestion.trim() === "") return;
-    // TODO: 질문 등록 API 호출
-    setCurrentQuestion("");
+    if (currentQuestion.trim() === "" || !stompClientRef.current || !roomId)
+      return;
+
+    try {
+      const questionContent = currentQuestion.trim();
+
+      stompClientRef.current.publish({
+        destination: `/app/rooms/${roomId}/questions/create`,
+        body: JSON.stringify({
+          content: questionContent,
+          memberId: user?.id,
+        }),
+      });
+
+      setCurrentQuestion("");
+    } catch {
+      alert("질문 전송에 실패했습니다. 다시 시도해주세요.");
+    }
   };
 
   const sendReply = () => {
-    if (currentReply.trim() === "" || replyingTo === null) return;
-    // TODO: 답변 등록 API 호출
-    setCurrentReply("");
+    if (
+      currentReply.trim() === "" ||
+      replyingTo === null ||
+      !stompClientRef.current ||
+      !roomId
+    )
+      return;
+
+    try {
+      const answerContent = currentReply.trim();
+
+      stompClientRef.current.publish({
+        destination: `/app/rooms/${roomId}/questions/${replyingTo}/answers/create`,
+        body: JSON.stringify({
+          content: answerContent,
+        }),
+      });
+
+      setCurrentReply("");
+      setReplyingTo(null);
+
+      if (selectedQuestionId === replyingTo) {
+        refetchAnswers();
+      }
+    } catch {
+      alert("답변 전송에 실패했습니다. 다시 시도해주세요.");
+    }
   };
 
-  const toggleReplies = (questionId: number) => {
-    // TODO: 답변 표시 토글 로직
-    console.log('Toggle replies for question:', questionId);
+  const toggleAnswers = (questionId: number) => {
+    setShowAnswers((prev) => ({
+      ...prev,
+      [questionId]: !prev[questionId],
+    }));
+
+    if (!showAnswers[questionId]) {
+      setSelectedQuestionId(questionId);
+    } else {
+      setSelectedQuestionId(null);
+    }
   };
 
   const handleQuestionKeyPress = (e: React.KeyboardEvent) => {
@@ -116,50 +280,96 @@ const PresentationRoom = () => {
     }
   };
 
-  // 웹소켓 연결 및 방 참여
   useEffect(() => {
     if (!roomId) return;
 
     const connectWebSocket = () => {
-      // SockJS 소켓 생성
-      const socket = new SockJS("http://15.165.241.81:8080/ws", null, {
-        withCredentials: true,
-      });
+      const socket = new SockJS("http://15.165.241.81:8080/ws");
 
-      // STOMP 클라이언트 생성
       const stompClient = new Client({
         webSocketFactory: () => socket,
-        debug: (str) => {
-          console.log('STOMP Debug:', str);
-        },
+
         onConnect: () => {
-          console.log('STOMP 연결 성공');
           setIsConnected(true);
 
-          // 발표방 참여 요청
           stompClient.publish({
             destination: `/app/rooms/${roomId}/join`,
-            body: JSON.stringify({}),
+            body: JSON.stringify({
+              memberId: user?.id,
+            }),
           });
 
-          // 발표방 참여자 수 구독
           stompClient.subscribe(`/topic/rooms/${roomId}/join`, (message) => {
             try {
               const data = JSON.parse(message.body);
-              console.log('참여자 수 업데이트:', data);
               setParticipantCount(data.participantCount);
-            } catch (error) {
-              console.error('참여자 수 파싱 오류:', error);
+            } catch {
+              console.error("참여자 수 파싱 오류");
             }
           });
+
+          stompClient.subscribe(
+            `/topic/rooms/${roomId}/questions`,
+            (message) => {
+              try {
+                const questionEvent: QuestionCreateEvent = JSON.parse(
+                  message.body
+                );
+
+                if (questionEvent.event === "CREATE") {
+                  const newQuestion: QuestionItem = {
+                    questionId: questionEvent.questionId,
+                    content: questionEvent.content,
+                    emojiCount: questionEvent.emojiCount,
+                    hasAnswer: questionEvent.hasAnswer,
+                    isEmojied: questionEvent.isEmojied,
+                    writer: questionEvent.writer,
+                    createdAt: questionEvent.createdAt,
+                  };
+
+                  setRealTimeQuestions((prev) => {
+                    const filteredPrev = prev.filter(
+                      (q) =>
+                        q.questionId !== newQuestion.questionId &&
+                        q.questionId < 10000000000000
+                    );
+                    const updated = [newQuestion, ...filteredPrev];
+                    return updated;
+                  });
+                }
+              } catch (error) {
+                console.error("질문 이벤트 파싱 오류:", error);
+              }
+            }
+          );
+
+          stompClient.subscribe(`/topic/rooms/${roomId}/answers`, (message) => {
+            try {
+              const answerEvent: AnswerCreateEvent = JSON.parse(message.body);
+
+              if (answerEvent.event === "CREATE") {
+                if (selectedQuestionId === answerEvent.questionId) {
+                  refetchAnswers();
+                }
+
+                setRealTimeQuestions((prev) =>
+                  prev.map((q) =>
+                    q.questionId === answerEvent.questionId
+                      ? { ...q, hasAnswer: true }
+                      : q
+                  )
+                );
+              }
+            } catch (error) {
+              console.error("답변 이벤트 파싱 오류:", error);
+            }
+          });
+
+          setIsSubscribed(true);
         },
         onDisconnect: () => {
-          console.log('STOMP 연결 해제');
           setIsConnected(false);
-        },
-        onStompError: (frame) => {
-          console.error('STOMP 오류:', frame.headers['message']);
-          console.error('세부사항:', frame.body);
+          setIsSubscribed(false);
         },
       });
 
@@ -169,50 +379,62 @@ const PresentationRoom = () => {
 
     connectWebSocket();
 
-    // 컴포넌트 언마운트 시 연결 해제
     return () => {
       if (stompClientRef.current) {
         stompClientRef.current.deactivate();
       }
     };
-  }, [roomId]);
+  }, [roomId, refetchAnswers, selectedQuestionId, user?.id]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [questionsData]);
 
-  if (isQuestionsLoading) {
+  if (isQuestionsLoading || isLoadingRoom) {
     return <div>Loading...</div>;
   }
 
-  if (isQuestionsError) {
+  if (isQuestionsError || isErrorRoom) {
     return <div>Error!</div>;
   }
 
-  const filteredQuestions = questionsData?.questions || [];
+  const allQuestions = [
+    ...realTimeQuestions,
+    ...(questionsData?.questions || []),
+  ];
+
+  const uniqueQuestions = allQuestions.filter(
+    (question, index, self) =>
+      index === self.findIndex((q) => q.questionId === question.questionId)
+  );
+
+  const filteredQuestions = uniqueQuestions;
+
+  const sortedQuestions = [...filteredQuestions].sort((a, b) => {
+    if (activeTab === "EMOJI") {
+      return b.emojiCount - a.emojiCount;
+    }
+
+    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+  });
 
   return (
     <div className="flex h-screen bg-gray-100">
-      <PdfViewer roomId={roomId || ""} />
+      <PdfViewer roomData={roomData || undefined} />
 
       <div className="w-1/3 h-full p-4 flex flex-col">
         {/* 연결 상태 및 참여자 수 표시 */}
         <div className="mb-4 flex justify-between items-center">
-          <div className="flex items-center gap-2">
-            <div className={`w-2 h-2 rounded-full ${
-              isConnected ? 'bg-green-500' : 'bg-red-500'
-            }`}></div>
-            <span className="text-sm text-gray-600">
-              {isConnected ? '연결됨' : '연결 중...'}
-            </span>
+          <div className="flex flex-col gap-2">
             {participantCount > 0 && (
               <span className="text-sm text-gray-600">
-                참여자: {participantCount}명
+                참여자: {participantCount}명 / {roomData?.participantLimit}명
+                (참가 코드 : {roomData?.roomCode})
               </span>
             )}
           </div>
         </div>
-        
+
         <div className="mb-4 flex gap-2">
           <button
             onClick={() => setActiveTab("CREATEDAT")}
@@ -249,23 +471,79 @@ const PresentationRoom = () => {
           <div className="flex-grow overflow-auto mb-4">
             {/* 질문 리스트 */}
             <div className="space-y-4">
-              {filteredQuestions.map((question) => (
-                <QuestionItem
-                  key={question.questionId}
-                  question={{
-                    id: question.questionId,
-                    content: question.content,
-                    author: question.writer.nickname,
-                    timestamp: new Date(question.createdAt),
-                    isMyQuestion: false,
-                    likes: question.emojiCount,
-                    replies: [],
-                    showReplies: false,
-                  }}
-                  toggleReplies={toggleReplies}
-                  setReplyingTo={setReplyingTo}
-                />
-              ))}
+              {sortedQuestions.length === 0 ? (
+                <div className="text-center text-gray-500 py-8">
+                  아직 질문이 없습니다.
+                  <br />
+                  <small>질문을 입력해주세요!</small>
+                </div>
+              ) : (
+                sortedQuestions.map((question) => (
+                  <div key={question.questionId} className="space-y-2">
+                    <QuestionItem
+                      question={{
+                        id: question.questionId,
+                        content: question.content,
+                        author: question.writer.nickname,
+                        timestamp: new Date(question.createdAt),
+                        isMyQuestion: false,
+                        likes: question.emojiCount,
+                        replies: [],
+                        showReplies: false,
+                      }}
+                      toggleReplies={() => toggleAnswers(question.questionId)}
+                      setReplyingTo={setReplyingTo}
+                    />
+
+                    {/* 답변 보기 버튼 */}
+                    <div className="ml-4">
+                      <button
+                        onClick={() => toggleAnswers(question.questionId)}
+                        className="text-sm text-blue-500 hover:text-blue-700 mb-2"
+                      >
+                        {showAnswers[question.questionId]
+                          ? "답변 숨기기"
+                          : "답변 보기"}
+                        {question.hasAnswer &&
+                          ` (${question.hasAnswer ? "1+" : "0"})`}
+                      </button>
+
+                      {/* 답변 목록 */}
+                      {showAnswers[question.questionId] && (
+                        <div className="bg-gray-50 p-3 rounded-lg space-y-2">
+                          {isAnswersLoading ? (
+                            <div className="text-center text-gray-500">
+                              답변 로딩 중...
+                            </div>
+                          ) : answersData?.answers &&
+                            answersData.answers.length > 0 ? (
+                            answersData.answers.map((answer) => (
+                              <div
+                                key={answer.answerId}
+                                className="bg-white p-2 rounded border-l-4 border-blue-200"
+                              >
+                                <div className="text-sm font-medium text-gray-700">
+                                  {answer.writer.nickname}
+                                </div>
+                                <div className="text-gray-800 mt-1">
+                                  {answer.content}
+                                </div>
+                                <div className="text-xs text-gray-500 mt-1">
+                                  {new Date(answer.createdAt).toLocaleString()}
+                                </div>
+                              </div>
+                            ))
+                          ) : (
+                            <div className="text-center text-gray-500">
+                              아직 답변이 없습니다.
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
             <div ref={messagesEndRef} />
           </div>

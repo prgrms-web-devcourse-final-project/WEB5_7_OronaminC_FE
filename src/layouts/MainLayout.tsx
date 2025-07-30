@@ -133,10 +133,6 @@ const MainLayout = () => {
         {!location.pathname.endsWith("/report") &&
         location.pathname.startsWith("/room/") ? (
           <div className="flex items-center gap-2">
-            <span className="mr-2 text-sm">
-              참가자: {roomData?.participantCount} /{" "}
-              {roomData?.participantLimit}
-            </span>
             {roomData?.isHost && roomData?.roomStatus === "BEFORE_START" ? (
               <button
                 onClick={() => {

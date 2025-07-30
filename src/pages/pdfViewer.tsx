@@ -1,57 +1,16 @@
-import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { Document, Page, pdfjs } from "react-pdf";
+import type { RoomData } from "./PresentationRoom";
 
 // PDF.js worker 설정
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
-interface Slide {
-  title: string;
-  content: Array<{
-    number: string;
-    text: string;
-  }>;
-}
-
-interface RoomData {
-  title: string;
-  description: string;
-  name: string;
-  team: string[];
-  roomCode: string;
-  presignedUrl: string;
-  participantCount: number;
-  participantLimit: number;
-  emojiCount: number;
-  isHost: boolean;
-  isTeamMember: boolean;
-  roomStatus: "BEFORE_START" | "STARTED" | "ENDED";
-  createdAt: string;
-  slides?: Slide[];
-}
-
-export const PdfViewer = ({ roomId }: { roomId: string }) => {
+export const PdfViewer = ({ roomData }: { roomData: RoomData | undefined }) => {
   // PDF viewer 상태
   const [numPages, setNumPages] = useState<number | null>(null);
   const [pageNumber, setPageNumber] = useState<number>(1);
   const [scale, setScale] = useState<number>(1.0);
   const [pdfError, setPdfError] = useState<string | null>(null);
-
-  const {
-    data: roomData,
-    isLoading,
-    isError,
-  } = useQuery<RoomData>({
-    queryKey: ["room", roomId],
-    queryFn: async () => {
-      const response = await fetch(`/api/rooms/${roomId}`, {
-        credentials: "include",
-      });
-      if (!response.ok) throw new Error("방 정보 조회 실패");
-      return response.json();
-    },
-    enabled: !!roomId,
-  });
 
   // PDF viewer 함수들
   const onDocumentLoadSuccess = ({ numPages }: { numPages: number }) => {
@@ -81,20 +40,10 @@ export const PdfViewer = ({ roomId }: { roomId: string }) => {
     setScale((prev) => Math.max(prev - 0.2, 0.5));
   };
 
-  if (isLoading) {
-    return <div>Loading...</div>;
-  }
-
-  if (isError) {
-    return <div>Error!</div>;
-  }
-
   return (
     <div className="w-2/3 h-full p-4 flex flex-col">
       <div className="flex-grow bg-white rounded-lg shadow-md p-6 flex flex-col">
-        {/* PDF Viewer 영역 */}
         <div className="flex-grow flex flex-col border-2 border-gray-100 rounded-lg bg-gray-50 relative overflow-hidden">
-          {/* PDF 컨트롤 버튼 */}
           <div className="flex items-center justify-between p-3 bg-white border-b border-gray-200">
             <div className="flex items-center gap-2">
               <button
