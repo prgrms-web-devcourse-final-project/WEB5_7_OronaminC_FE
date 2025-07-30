@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { useParams } from "react-router-dom";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useAuthStore } from "../store/authStore";
 import "react-pdf/dist/Page/AnnotationLayer.css";
 import "react-pdf/dist/Page/TextLayer.css";
@@ -99,41 +99,16 @@ interface Reply {
   likes: number;
 }
 
-interface Answer {
-  answerId: number;
-  questionId: number;
-  content: string;
-  emojiCount: number;
-  isEmojied: boolean;
-  writer: {
-    memberId: number;
-    nickname: string;
-  };
-  createdAt: string;
-}
-
-interface AnswersResponse {
-  answers: Answer[];
-}
-
 const PresentationRoom = () => {
   const { roomId } = useParams<{ roomId: string }>();
   const [currentQuestion, setCurrentQuestion] = useState<string>("");
-  const [currentReply, setCurrentReply] = useState<string>("");
-  const [replyingTo, setReplyingTo] = useState<number | null>(null);
+
   const [participantCount, setParticipantCount] = useState<number>(0);
-  const [isConnected, setIsConnected] = useState<boolean>(false);
   const { user } = useAuthStore();
   const [isSubscribed, setIsSubscribed] = useState<boolean>(false);
   const stompClientRef = useRef<Client | null>(null);
   const [realTimeQuestions, setRealTimeQuestions] = useState<QuestionItem[]>(
     []
-  );
-  const [selectedQuestionId, setSelectedQuestionId] = useState<number | null>(
-    null
-  );
-  const [showAnswers, setShowAnswers] = useState<{ [key: number]: boolean }>(
-    {}
   );
 
   const {
@@ -179,27 +154,6 @@ const PresentationRoom = () => {
     enabled: !!roomId,
   });
 
-  const {
-    data: answersData,
-    isLoading: isAnswersLoading,
-    refetch: refetchAnswers,
-  } = useQuery<AnswersResponse>({
-    queryKey: ["answers", roomId, selectedQuestionId],
-    queryFn: async () => {
-      if (!selectedQuestionId) throw new Error("질문 ID가 없습니다");
-
-      const response = await fetch(
-        `/api/rooms/${roomId}/questions/${selectedQuestionId}/answers`,
-        {
-          credentials: "include",
-        }
-      );
-      if (!response.ok) throw new Error("답변 조회 실패");
-      return response.json();
-    },
-    enabled: !!roomId && !!selectedQuestionId,
-  });
-
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const sendQuestion = () => {
@@ -223,60 +177,10 @@ const PresentationRoom = () => {
     }
   };
 
-  const sendReply = () => {
-    if (
-      currentReply.trim() === "" ||
-      replyingTo === null ||
-      !stompClientRef.current ||
-      !roomId
-    )
-      return;
-
-    try {
-      const answerContent = currentReply.trim();
-
-      stompClientRef.current.publish({
-        destination: `/app/rooms/${roomId}/questions/${replyingTo}/answers/create`,
-        body: JSON.stringify({
-          content: answerContent,
-        }),
-      });
-
-      setCurrentReply("");
-      setReplyingTo(null);
-
-      if (selectedQuestionId === replyingTo) {
-        refetchAnswers();
-      }
-    } catch {
-      alert("답변 전송에 실패했습니다. 다시 시도해주세요.");
-    }
-  };
-
-  const toggleAnswers = (questionId: number) => {
-    setShowAnswers((prev) => ({
-      ...prev,
-      [questionId]: !prev[questionId],
-    }));
-
-    if (!showAnswers[questionId]) {
-      setSelectedQuestionId(questionId);
-    } else {
-      setSelectedQuestionId(null);
-    }
-  };
-
   const handleQuestionKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       sendQuestion();
-    }
-  };
-
-  const handleReplyKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      sendReply();
     }
   };
 
@@ -290,8 +194,6 @@ const PresentationRoom = () => {
         webSocketFactory: () => socket,
 
         onConnect: () => {
-          setIsConnected(true);
-
           stompClient.publish({
             destination: `/app/rooms/${roomId}/join`,
             body: JSON.stringify({
@@ -348,10 +250,6 @@ const PresentationRoom = () => {
               const answerEvent: AnswerCreateEvent = JSON.parse(message.body);
 
               if (answerEvent.event === "CREATE") {
-                if (selectedQuestionId === answerEvent.questionId) {
-                  refetchAnswers();
-                }
-
                 setRealTimeQuestions((prev) =>
                   prev.map((q) =>
                     q.questionId === answerEvent.questionId
@@ -368,7 +266,6 @@ const PresentationRoom = () => {
           setIsSubscribed(true);
         },
         onDisconnect: () => {
-          setIsConnected(false);
           setIsSubscribed(false);
         },
       });
@@ -384,7 +281,7 @@ const PresentationRoom = () => {
         stompClientRef.current.deactivate();
       }
     };
-  }, [roomId, refetchAnswers, selectedQuestionId, user?.id]);
+  }, [roomId, user?.id]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -481,66 +378,11 @@ const PresentationRoom = () => {
                 sortedQuestions.map((question) => (
                   <div key={question.questionId} className="space-y-2">
                     <QuestionItem
-                      question={{
-                        id: question.questionId,
-                        content: question.content,
-                        author: question.writer.nickname,
-                        timestamp: new Date(question.createdAt),
-                        isMyQuestion: false,
-                        likes: question.emojiCount,
-                        replies: [],
-                        showReplies: false,
-                      }}
-                      toggleReplies={() => toggleAnswers(question.questionId)}
-                      setReplyingTo={setReplyingTo}
+                      question={question}
+                      roomId={roomId || ""}
+                      stompClient={stompClientRef.current}
+                      isSubscribed={isSubscribed}
                     />
-
-                    {/* 답변 보기 버튼 */}
-                    <div className="ml-4">
-                      <button
-                        onClick={() => toggleAnswers(question.questionId)}
-                        className="text-sm text-blue-500 hover:text-blue-700 mb-2"
-                      >
-                        {showAnswers[question.questionId]
-                          ? "답변 숨기기"
-                          : "답변 보기"}
-                        {question.hasAnswer &&
-                          ` (${question.hasAnswer ? "1+" : "0"})`}
-                      </button>
-
-                      {/* 답변 목록 */}
-                      {showAnswers[question.questionId] && (
-                        <div className="bg-gray-50 p-3 rounded-lg space-y-2">
-                          {isAnswersLoading ? (
-                            <div className="text-center text-gray-500">
-                              답변 로딩 중...
-                            </div>
-                          ) : answersData?.answers &&
-                            answersData.answers.length > 0 ? (
-                            answersData.answers.map((answer) => (
-                              <div
-                                key={answer.answerId}
-                                className="bg-white p-2 rounded border-l-4 border-blue-200"
-                              >
-                                <div className="text-sm font-medium text-gray-700">
-                                  {answer.writer.nickname}
-                                </div>
-                                <div className="text-gray-800 mt-1">
-                                  {answer.content}
-                                </div>
-                                <div className="text-xs text-gray-500 mt-1">
-                                  {new Date(answer.createdAt).toLocaleString()}
-                                </div>
-                              </div>
-                            ))
-                          ) : (
-                            <div className="text-center text-gray-500">
-                              아직 답변이 없습니다.
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
                   </div>
                 ))
               )}
@@ -572,39 +414,6 @@ const PresentationRoom = () => {
               </div>
             </section>
           </div>
-
-          {/* 답변 입력 영역 - 질문에 답변할 때만 표시 */}
-          {replyingTo !== null && (
-            <div className="relative mt-3">
-              <section className="w-full">
-                <div className="border rounded-lg overflow-hidden flex border-gray-200">
-                  <div className="flex-1 px-3 py-2 flex items-center bg-white">
-                    <input
-                      type="text"
-                      placeholder="답변을 입력해주세요"
-                      className="w-full focus:outline-none"
-                      value={currentReply}
-                      onChange={(e) => setCurrentReply(e.target.value)}
-                      onKeyPress={handleReplyKeyPress}
-                    />
-                  </div>
-                  <button
-                    type="button"
-                    onClick={sendReply}
-                    className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 font-medium transition-colors m-2 rounded-lg cursor-pointer"
-                  >
-                    답변
-                  </button>
-                </div>
-                <button
-                  onClick={() => setReplyingTo(null)}
-                  className="text-sm text-gray-500 mt-1 hover:text-gray-700"
-                >
-                  취소
-                </button>
-              </section>
-            </div>
-          )}
         </div>
       </div>
     </div>
