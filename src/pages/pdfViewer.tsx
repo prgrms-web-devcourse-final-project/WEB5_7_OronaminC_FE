@@ -1,16 +1,32 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Document, Page, pdfjs } from "react-pdf";
 import type { RoomData } from "./PresentationRoom";
+import { Client } from "@stomp/stompjs";
+import SockJS from "sockjs-client";
+import { useAuthStore } from "../store/authStore";
 
 // PDF.js worker 설정
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
-export const PdfViewer = ({ roomData }: { roomData: RoomData | undefined }) => {
+interface PdfViewerProps {
+  roomData: RoomData | undefined;
+  roomId?: string;
+}
+
+export const PdfViewer = ({ roomData, roomId }: PdfViewerProps) => {
   // PDF viewer 상태
   const [numPages, setNumPages] = useState<number | null>(null);
   const [pageNumber, setPageNumber] = useState<number>(1);
   const [scale, setScale] = useState<number>(1.0);
   const [pdfError, setPdfError] = useState<string | null>(null);
+
+  // 이모지 관련 상태
+  const [currentEmojiCount, setCurrentEmojiCount] = useState<number>(
+    roomData?.emojiCount || 0
+  );
+  const [isSubscribed, setIsSubscribed] = useState<boolean>(false);
+  const stompClientRef = useRef<Client | null>(null);
+  const { user } = useAuthStore();
 
   // PDF viewer 함수들
   const onDocumentLoadSuccess = ({ numPages }: { numPages: number }) => {
@@ -40,10 +56,89 @@ export const PdfViewer = ({ roomData }: { roomData: RoomData | undefined }) => {
     setScale((prev) => Math.max(prev - 0.2, 0.5));
   };
 
+  // 발표방 이모지 전송
+  const sendEmoji = () => {
+    if (!stompClientRef.current || !isSubscribed || !user?.id || !roomId) {
+      return;
+    }
+
+    const emojiData = {
+      targetType: "ROOM",
+      targetId: parseInt(roomId),
+      memberId: user.id,
+    };
+
+    try {
+      stompClientRef.current.publish({
+        destination: `/app/rooms/${roomId}/emojis/create`,
+        body: JSON.stringify(emojiData),
+      });
+    } catch (error) {
+      console.error("[PDF Viewer] 이모지 전송 실패:", error);
+    }
+  };
+
+  // STOMP 웹소켓 연결
+  useEffect(() => {
+    if (!roomId) return;
+
+    const client = new Client({
+      webSocketFactory: () => new SockJS("/ws"),
+      reconnectDelay: 5000,
+      heartbeatIncoming: 4000,
+      heartbeatOutgoing: 4000,
+      onConnect: () => {
+        // 이모지 이벤트 구독
+        client.subscribe(`/topic/rooms/${roomId}/emojis`, (message) => {
+          try {
+            const emojiEvent = JSON.parse(message.body);
+
+            if (
+              emojiEvent.targetType === "ROOM" &&
+              emojiEvent.targetId === parseInt(roomId)
+            ) {
+              setCurrentEmojiCount(emojiEvent.emojiCount);
+            }
+          } catch (error) {
+            console.error("[PDF Viewer] 이모지 이벤트 파싱 실패:", error);
+          }
+        });
+
+        setIsSubscribed(true);
+      },
+      onDisconnect: () => {
+        console.log("[PDF Viewer] STOMP 연결 해제");
+        setIsSubscribed(false);
+      },
+      onStompError: (frame) => {
+        console.error("[PDF Viewer] STOMP 오류:", frame.headers["message"]);
+        setIsSubscribed(false);
+      },
+    });
+
+    stompClientRef.current = client;
+    client.activate();
+
+    return () => {
+      if (stompClientRef.current) {
+        stompClientRef.current.deactivate();
+        stompClientRef.current = null;
+      }
+      setIsSubscribed(false);
+    };
+  }, [roomId]);
+
+  // roomData 변경 시 이모지 카운트 동기화
+  useEffect(() => {
+    if (roomData?.emojiCount !== undefined) {
+      setCurrentEmojiCount(roomData.emojiCount);
+    }
+  }, [roomData?.emojiCount]);
+
   return (
-    <div className="w-2/3 h-full p-4 flex flex-col">
-      <div className="flex-grow bg-white rounded-lg shadow-md p-6 flex flex-col">
-        <div className="flex-grow flex flex-col border-2 border-gray-100 rounded-lg bg-gray-50 relative overflow-hidden">
+    <div className="w-2/3 h-screen p-4 flex flex-col overflow-hidden">
+      <div className="flex-1 bg-white rounded-lg shadow-md p-4 flex flex-col min-h-0">
+        <div className="flex-1 flex flex-col border-2 border-gray-100 rounded-lg bg-gray-50 relative overflow-hidden min-h-0">
           <div className="flex items-center justify-between p-3 bg-white border-b border-gray-200">
             <div className="flex items-center gap-2">
               <button
@@ -122,24 +217,32 @@ export const PdfViewer = ({ roomData }: { roomData: RoomData | undefined }) => {
           </div>
         </div>
       </div>
-      <div className="flex items-center justify-between bg-white p-4 mt-4 shadow-md rounded-lg">
-        <div className="flex flex-col gap-1">
-          <span className="font-bold">발표자 : {roomData?.name}</span>
-          <span className="text-sm text-gray-500">
+      <div className="flex items-center justify-between bg-white p-3 mt-3 shadow-md rounded-lg flex-shrink-0">
+        <div className="flex flex-col gap-1 flex-1 min-w-0">
+          <span className="font-bold text-sm">발표자 : {roomData?.name}</span>
+          <span className="text-xs text-gray-500 truncate">
             팀원 : {roomData?.team.join(", ")}
           </span>
-          <span className="text-sm text-gray-500">
+          <span className="text-xs text-gray-500 truncate">
             발표 설명 : {roomData?.description}
           </span>
         </div>
-        <button className="bg-red-500 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors hover:bg-red-600 cursor-pointer">
+        <button
+          onClick={sendEmoji}
+          disabled={!isSubscribed}
+          className={`px-3 py-2 rounded-lg flex items-center gap-2 transition-colors flex-shrink-0 ${
+            isSubscribed
+              ? "bg-red-500 hover:bg-red-600 text-white cursor-pointer"
+              : "bg-gray-300 text-gray-500 cursor-not-allowed"
+          }`}
+        >
           <svg
             xmlns="http://www.w3.org/2000/svg"
             width="24"
             height="24"
             viewBox="0 0 24 24"
-            fill="white"
-            stroke="white"
+            fill={isSubscribed ? "white" : "currentColor"}
+            stroke={isSubscribed ? "white" : "currentColor"}
             strokeWidth="2"
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -147,7 +250,7 @@ export const PdfViewer = ({ roomData }: { roomData: RoomData | undefined }) => {
           >
             <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
           </svg>
-          <span className="text-xl font-bold">{roomData?.emojiCount}</span>
+          <span className="text-lg font-bold">{currentEmojiCount}</span>
         </button>
       </div>
     </div>

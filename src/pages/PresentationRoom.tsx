@@ -316,15 +316,15 @@ const PresentationRoom = () => {
   });
 
   return (
-    <div className="flex h-screen bg-gray-100">
-      <PdfViewer roomData={roomData || undefined} />
+    <div className="flex h-screen bg-gray-100 overflow-hidden">
+      <PdfViewer roomData={roomData || undefined} roomId={roomId} />
 
-      <div className="w-1/3 h-full p-4 flex flex-col">
+      <div className="w-1/3 h-screen p-4 flex flex-col overflow-hidden">
         {/* 연결 상태 및 참여자 수 표시 */}
-        <div className="mb-4 flex justify-between items-center">
-          <div className="flex flex-col gap-2">
+        <div className="mb-3 flex justify-between items-center flex-shrink-0">
+          <div className="flex flex-col gap-1">
             {participantCount > 0 && (
-              <span className="text-sm text-gray-600">
+              <span className="text-xs text-gray-600">
                 참여자: {participantCount}명 / {roomData?.participantLimit}명
                 (참가 코드 : {roomData?.roomCode})
               </span>
@@ -332,7 +332,7 @@ const PresentationRoom = () => {
           </div>
         </div>
 
-        <div className="mb-4 flex gap-2">
+        <div className="mb-3 flex gap-2 flex-shrink-0">
           <button
             onClick={() => setActiveTab("CREATEDAT")}
             className={`flex-1 ${
@@ -364,8 +364,8 @@ const PresentationRoom = () => {
             내 질문
           </button>
         </div>
-        <div className="flex-grow bg-white rounded-lg shadow-md p-4 flex flex-col">
-          <div className="flex-grow overflow-auto mb-4">
+        <div className="flex-1 bg-white rounded-lg shadow-md p-4 flex flex-col min-h-0">
+          <div className="flex-1 overflow-y-auto mb-4 min-h-0">
             {/* 질문 리스트 */}
             <div className="space-y-4">
               {sortedQuestions.length === 0 ? (
@@ -391,7 +391,7 @@ const PresentationRoom = () => {
           </div>
 
           {/* 질문 입력 영역 */}
-          <div className="relative">
+          <div className="flex-shrink-0">
             <section className="w-full">
               <div className="border rounded-lg overflow-hidden flex border-gray-200">
                 <div className="flex-1 px-3 py-2 flex items-center bg-white">
