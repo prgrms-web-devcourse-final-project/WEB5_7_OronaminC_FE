@@ -90,7 +90,25 @@ const MainLayout = () => {
       !location.pathname.endsWith("/report") &&
       roomData?.isHost
     ) {
-      navigate("/mypage");
+      try {
+        // 발표방 종료 API 호출
+        const response = await fetch(`/api/rooms/${roomId}/status`, {
+          method: "PATCH",
+          credentials: "include",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            roomStatus: "ENDED",
+          }),
+        });
+
+        if (response.ok) {
+          navigate("/mypage");
+        }
+      } catch {
+        navigate("/mypage");
+      }
     } else {
       try {
         if (isAuthenticated) {
@@ -150,7 +168,7 @@ const MainLayout = () => {
                 onClick={handleLogout}
                 className="bg-red-500 cursor-pointer hover:bg-red-600 text-white px-4 py-1 rounded-full text-sm font-medium transition-colors"
               >
-                나가기
+                {roomData?.isHost ? "종료하기" : "나가기"}
               </button>
             )}
           </div>
