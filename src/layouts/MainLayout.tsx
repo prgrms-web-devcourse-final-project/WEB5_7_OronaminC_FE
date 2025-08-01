@@ -202,6 +202,14 @@ const MainLayout = () => {
                 초대 코드로 입장
               </button>
             )}
+            {location.pathname.endsWith("/report") && (
+              <button
+                onClick={() => navigate("/mypage")}
+                className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-2 py-2 rounded-md text-sm font-medium transition-colors cursor-pointer"
+              >
+                마이페이지
+              </button>
+            )}
           </div>
         )}
       </header>
