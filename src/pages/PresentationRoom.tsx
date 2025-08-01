@@ -332,6 +332,8 @@ const PresentationRoom = () => {
     return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
   });
 
+  console.log(roomData);
+
   return (
     <div className="flex h-screen bg-gray-100 overflow-hidden">
       <PdfViewer roomData={roomData || undefined} roomId={roomId} />
@@ -340,12 +342,10 @@ const PresentationRoom = () => {
         {/* 연결 상태 및 참여자 수 표시 */}
         <div className="mb-3 flex justify-between items-center flex-shrink-0">
           <div className="flex flex-col gap-1">
-            {participantCount > 0 && (
-              <span className="text-xs text-gray-600">
-                참여자: {participantCount}명 / {roomData?.participantLimit}명
-                (참가 코드 : {roomData?.roomCode})
-              </span>
-            )}
+            <span className="text-xs text-gray-600">
+              참여자: {participantCount}명 / {roomData?.participantLimit}명
+              (참가 코드 : {roomData?.roomCode})
+            </span>
           </div>
         </div>
 
