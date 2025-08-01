@@ -88,7 +88,6 @@ export const PdfViewer = ({ roomData, roomId }: PdfViewerProps) => {
       heartbeatIncoming: 4000,
       heartbeatOutgoing: 4000,
       onConnect: () => {
-        // 이모지 이벤트 구독
         client.subscribe(`/topic/rooms/${roomId}/emojis`, (message) => {
           try {
             const emojiEvent = JSON.parse(message.body);
@@ -99,20 +98,30 @@ export const PdfViewer = ({ roomData, roomId }: PdfViewerProps) => {
             ) {
               setCurrentEmojiCount(emojiEvent.emojiCount);
             }
-          } catch (error) {
-            console.error("[PDF Viewer] 이모지 이벤트 파싱 실패:", error);
+          } catch {
+            alert("[PDF Viewer] 이모지 이벤트 파싱 실패");
           }
         });
 
         setIsSubscribed(true);
       },
       onDisconnect: () => {
-        console.log("[PDF Viewer] STOMP 연결 해제");
         setIsSubscribed(false);
       },
       onStompError: (frame) => {
-        console.error("[PDF Viewer] STOMP 오류:", frame.headers["message"]);
         setIsSubscribed(false);
+
+        try {
+          const errorBody = frame.body;
+          if (errorBody) {
+            const errorData = JSON.parse(errorBody);
+            if (errorData.message) {
+              alert(`오류: ${errorData.message}`);
+            }
+          }
+        } catch {
+          alert("연결 오류가 발생했습니다.");
+        }
       },
     });
 

@@ -206,7 +206,7 @@ const PresentationRoom = () => {
               const data = JSON.parse(message.body);
               setParticipantCount(data.participantCount);
             } catch {
-              console.error("참여자 수 파싱 오류");
+              alert("참여자 수 파싱 오류");
             }
           });
 
@@ -239,8 +239,8 @@ const PresentationRoom = () => {
                     return updated;
                   });
                 }
-              } catch (error) {
-                console.error("질문 이벤트 파싱 오류:", error);
+              } catch {
+                alert("질문 이벤트 파싱 오류");
               }
             }
           );
@@ -258,8 +258,8 @@ const PresentationRoom = () => {
                   )
                 );
               }
-            } catch (error) {
-              console.error("답변 이벤트 파싱 오류:", error);
+            } catch {
+              alert("답변 이벤트 파싱 오류");
             }
           });
 
@@ -267,6 +267,23 @@ const PresentationRoom = () => {
         },
         onDisconnect: () => {
           setIsSubscribed(false);
+        },
+        onStompError: (frame) => {
+          console.error("[PresentationRoom] STOMP 오류:", frame);
+          setIsSubscribed(false);
+
+          try {
+            // STOMP 오류 메시지에서 JSON 파싱 시도
+            const errorBody = frame.body;
+            if (errorBody) {
+              const errorData = JSON.parse(errorBody);
+              if (errorData.message) {
+                alert(`오류: ${errorData.message}`);
+              }
+            }
+          } catch {
+            alert("연결 오류가 발생했습니다.");
+          }
         },
       });
 
