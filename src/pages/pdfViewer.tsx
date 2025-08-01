@@ -145,7 +145,7 @@ export const PdfViewer = ({ roomData, roomId }: PdfViewerProps) => {
   }, [roomData?.emojiCount]);
 
   return (
-    <div className="w-2/3 h-screen p-4 flex flex-col overflow-hidden">
+    <div className="w-2/3 p-4 flex flex-col overflow-hidden">
       <div className="flex-1 bg-white rounded-lg shadow-md p-4 flex flex-col min-h-0">
         <div className="flex-1 flex flex-col border-2 border-gray-100 rounded-lg bg-gray-50 relative overflow-hidden min-h-0">
           <div className="flex items-center justify-between p-3 bg-white border-b border-gray-200">

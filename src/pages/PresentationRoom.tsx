@@ -332,10 +332,8 @@ const PresentationRoom = () => {
     return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
   });
 
-  console.log(roomData);
-
   return (
-    <div className="flex h-screen bg-gray-100 overflow-hidden">
+    <div className="flex w-full mx-auto bg-gray-100 overflow-hidden">
       <PdfViewer roomData={roomData || undefined} roomId={roomId} />
 
       <div className="w-1/3 h-screen p-4 flex flex-col overflow-hidden">
@@ -381,7 +379,7 @@ const PresentationRoom = () => {
             내 질문
           </button>
         </div>
-        <div className="flex-1 bg-white rounded-lg shadow-md p-4 flex flex-col min-h-0">
+        <div className="flex-1 bg-white rounded-lg shadow-md p-4 flex flex-col min-h-0 overflow-hidden">
           <div className="flex-1 overflow-y-auto mb-4 min-h-0">
             {/* 질문 리스트 */}
             <div className="space-y-4">
