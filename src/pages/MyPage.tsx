@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
-type FilterType = "전체" | "생성한 방" | "참여한 방";
+type FilterType = "전체" | "생성" | "참여";
 type RoomStatus = "BEFORE_START" | "STARTED" | "ENDED";
 type ParticipationType = "CREATED" | "JOINED";
 
@@ -44,7 +44,7 @@ const MyPage = () => {
       const typeParam =
         activeFilter === "전체"
           ? "ALL"
-          : activeFilter === "생성한 방"
+          : activeFilter === "생성"
           ? "CREATED"
           : "JOINED";
 
@@ -96,7 +96,7 @@ const MyPage = () => {
           <button
             key={page}
             onClick={() => handlePageChange(page)}
-            className={`w-8 h-8 flex items-center justify-center rounded-md ${
+            className={`w-8 h-8 flex items-center cursor-pointer justify-center rounded-md ${
               page === currentPage
                 ? "bg-blue-500 text-white"
                 : "bg-gray-200 text-gray-700 hover:bg-gray-300"
@@ -242,15 +242,24 @@ const MyPage = () => {
                             : "bg-gray-100 text-gray-800"
                         }`}
                       >
-                        {room.participationType === "CREATED"
-                          ? "생성한 방"
-                          : "참여한 방"}
+                        {room.participationType === "CREATED" ? "생성" : "참여"}
                       </span>
                     </div>
                     <h3 className="font-semibold text-lg">{room.title}</h3>
-                    <p className="text-gray-500 text-sm">
-                      발표일: {room.startedAt}
-                    </p>
+                    <div className="flex gap-2">
+                      <p className="text-gray-500 text-sm">
+                        좋아요: {room.emojiCount}
+                      </p>
+                      <p className="text-gray-500 text-sm">
+                        질문: {room.questions}
+                      </p>
+                      <p className="text-gray-500 text-sm">
+                        {room.participationType === "CREATED"
+                          ? "생성일"
+                          : "참여일"}
+                        : {room.startedAt}
+                      </p>
+                    </div>
                   </div>
                   <div className="flex gap-2">
                     {room.status === "ENDED" &&
