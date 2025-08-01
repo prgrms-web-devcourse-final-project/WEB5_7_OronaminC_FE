@@ -104,10 +104,10 @@ const MainLayout = () => {
         });
 
         if (response.ok) {
-          navigate("/mypage");
+          navigate(`/room/${roomId}/report`);
         }
       } catch {
-        navigate("/mypage");
+        navigate(`/room/${roomId}/report`);
       }
     } else {
       try {
