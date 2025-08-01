@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
-type FilterType = "전체" | "생성" | "참여";
+type FilterType = "전체" | "생성한 방" | "참여한 방";
 type RoomStatus = "BEFORE_START" | "STARTED" | "ENDED";
 type ParticipationType = "CREATED" | "JOINED";
 
@@ -38,13 +38,15 @@ const MyPage = () => {
     gcTime: 0,
   });
 
+  console.log(activeFilter);
+
   const { data: roomsData } = useQuery({
     queryKey: ["rooms", activeFilter, currentPage],
     queryFn: async () => {
       const typeParam =
         activeFilter === "전체"
           ? "ALL"
-          : activeFilter === "생성"
+          : activeFilter === "생성한 방"
           ? "CREATED"
           : "JOINED";
 
