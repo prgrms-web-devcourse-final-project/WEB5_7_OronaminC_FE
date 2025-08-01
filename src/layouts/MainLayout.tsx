@@ -152,17 +152,25 @@ const MainLayout = () => {
         location.pathname.startsWith("/room/") ? (
           <div className="flex items-center gap-2">
             {roomData?.isHost && roomData?.roomStatus === "BEFORE_START" ? (
-              <button
-                onClick={() => {
-                  if (roomId) {
-                    startRoomMutation.mutate(roomId);
-                  }
-                }}
-                disabled={startRoomMutation.isPending}
-                className="bg-red-500 hover:bg-red-600 text-white px-4 py-1 rounded-full text-sm font-medium transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {startRoomMutation.isPending ? "시작 중..." : "시작하기"}
-              </button>
+              <>
+                <button
+                  className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-2 py-2 rounded-md text-sm font-medium transition-colors cursor-pointer"
+                  onClick={() => navigate("/mypage")}
+                >
+                  나가기
+                </button>
+                <button
+                  onClick={() => {
+                    if (roomId) {
+                      startRoomMutation.mutate(roomId);
+                    }
+                  }}
+                  disabled={startRoomMutation.isPending}
+                  className="bg-red-500 hover:bg-red-600 text-white px-4 py-1 rounded-full text-sm font-medium transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {startRoomMutation.isPending ? "시작 중..." : "시작하기"}
+                </button>
+              </>
             ) : (
               <button
                 onClick={handleLogout}
