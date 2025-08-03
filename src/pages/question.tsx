@@ -127,6 +127,7 @@ export const QuestionItem = ({
       memberId: user.id,
     };
 
+    // 현재 상태에 따라 create 또는 delete 결정
     const destination = currentQuestion.isEmojied
       ? `/app/rooms/${roomId}/emojis/delete`
       : `/app/rooms/${roomId}/emojis/create`;
@@ -136,8 +137,15 @@ export const QuestionItem = ({
         destination,
         body: JSON.stringify(emojiData),
       });
+      
+      // 이모지 전송 성공 시 즉시 로컬 상태 업데이트
+      setCurrentQuestion((prev) => ({
+        ...prev,
+        isEmojied: !prev.isEmojied,
+      }));
     } catch (error) {
       console.error("[Question Item] 질문 공감 처리 실패:", error);
+      alert("공감 처리에 실패했습니다.");
     }
   };
 
@@ -152,6 +160,7 @@ export const QuestionItem = ({
       memberId: user.id,
     };
 
+    // 현재 상태에 따라 create 또는 delete 결정
     const destination = answer.isEmojied
       ? `/app/rooms/${roomId}/emojis/delete`
       : `/app/rooms/${roomId}/emojis/create`;
@@ -161,8 +170,18 @@ export const QuestionItem = ({
         destination,
         body: JSON.stringify(emojiData),
       });
+      
+      // 이모지 전송 성공 시 즉시 로컬 상태 업데이트
+      setCurrentAnswers((prev) =>
+        prev.map((ans) =>
+          ans.answerId === answer.answerId
+            ? { ...ans, isEmojied: !ans.isEmojied }
+            : ans
+        )
+      );
     } catch (error) {
       console.error("[Question Item] 답변 공감 처리 실패:", error);
+      alert("공감 처리에 실패했습니다.");
     }
   };
 
@@ -181,20 +200,19 @@ export const QuestionItem = ({
             emojiEvent.targetType === "QUESTION" &&
             emojiEvent.targetId === currentQuestion.questionId
           ) {
+            // 이모지 카운트만 업데이트 (isEmojied는 전송 시점에 이미 업데이트됨)
             setCurrentQuestion((prev) => ({
               ...prev,
               emojiCount: emojiEvent.emojiCount,
-              isEmojied: emojiEvent.event === "CREATE" ? true : prev.isEmojied,
             }));
           } else if (emojiEvent.targetType === "ANSWER") {
+            // 이모지 카운트만 업데이트 (isEmojied는 전송 시점에 이미 업데이트됨)
             setCurrentAnswers((prev) =>
               prev.map((answer) =>
                 answer.answerId === emojiEvent.targetId
                   ? {
                       ...answer,
                       emojiCount: emojiEvent.emojiCount,
-                      isEmojied:
-                        emojiEvent.event === "CREATE" ? true : answer.isEmojied,
                     }
                   : answer
               )
@@ -244,7 +262,7 @@ export const QuestionItem = ({
     return () => {
       subscriptions.forEach((subscription) => subscription.unsubscribe());
     };
-  }, [stompClient, roomId, currentQuestion.questionId]);
+  }, [stompClient, roomId, currentQuestion.questionId, user?.id]);
 
   useEffect(() => {
     if (answersData?.answers) {
@@ -255,6 +273,13 @@ export const QuestionItem = ({
   useEffect(() => {
     setCurrentQuestion(question);
   }, [question]);
+
+  // 사용자 로그인 상태가 변경될 때 답변 상태 초기화
+  useEffect(() => {
+    if (!user?.id) {
+      setCurrentAnswers([]);
+    }
+  }, [user?.id]);
 
   return (
     <div className="border rounded-lg p-4 bg-white">

@@ -21,6 +21,7 @@ export const PdfViewer = ({ roomData, roomId }: PdfViewerProps) => {
   const [currentEmojiCount, setCurrentEmojiCount] = useState<number>(
     roomData?.emojiCount || 0
   );
+  const [isEmojied, setIsEmojied] = useState<boolean>(false);
   const stompClientRef = useRef<Client | null>(null);
   const { user } = useAuthStore();
 
@@ -52,9 +53,6 @@ export const PdfViewer = ({ roomData, roomId }: PdfViewerProps) => {
   };
 
   const sendEmoji = () => {
-    console.log("stompClientRef", stompClientRef.current);
-    console.log("user", user);
-    console.log("roomId", roomId);
     if (!stompClientRef.current || !user?.id || !roomId) {
       return;
     }
@@ -65,13 +63,22 @@ export const PdfViewer = ({ roomData, roomId }: PdfViewerProps) => {
       memberId: user.id,
     };
 
+    // 현재 상태에 따라 create 또는 delete 결정
+    const destination = isEmojied
+      ? `/app/rooms/${roomId}/emojis/delete`
+      : `/app/rooms/${roomId}/emojis/create`;
+
     try {
       stompClientRef.current.publish({
-        destination: `/app/rooms/${roomId}/emojis/create`,
+        destination,
         body: JSON.stringify(emojiData),
       });
+      
+      // 이모지 전송 성공 시 즉시 로컬 상태 업데이트
+      setIsEmojied(prev => !prev);
     } catch (error) {
       console.error("[PDF Viewer] 이모지 전송 실패:", error);
+      alert("이모지 전송에 실패했습니다.");
     }
   };
 
@@ -92,10 +99,11 @@ export const PdfViewer = ({ roomData, roomId }: PdfViewerProps) => {
               emojiEvent.targetType === "ROOM" &&
               emojiEvent.targetId === parseInt(roomId)
             ) {
+              // 이모지 카운트만 업데이트 (isEmojied는 전송 시점에 이미 업데이트됨)
               setCurrentEmojiCount(emojiEvent.emojiCount);
             }
-          } catch {
-            alert("[PDF Viewer] 이모지 이벤트 파싱 실패");
+          } catch (error) {
+            console.error("[PDF Viewer] 이모지 이벤트 파싱 실패:", error);
           }
         });
       },
@@ -131,6 +139,13 @@ export const PdfViewer = ({ roomData, roomId }: PdfViewerProps) => {
       setCurrentEmojiCount(roomData.emojiCount);
     }
   }, [roomData?.emojiCount]);
+
+  // 사용자 로그인 상태가 변경될 때 isEmojied 상태 초기화
+  useEffect(() => {
+    if (!user?.id) {
+      setIsEmojied(false);
+    }
+  }, [user?.id]);
 
   return (
     <div className="w-2/3 p-4 flex flex-col overflow-hidden">
@@ -226,7 +241,11 @@ export const PdfViewer = ({ roomData, roomId }: PdfViewerProps) => {
         </div>
         <button
           onClick={sendEmoji}
-          className={`px-3 py-2 rounded-lg flex items-center gap-2 transition-colors flex-shrink-0 bg-red-500 hover:bg-red-600 text-white cursor-pointer`}
+          className={`px-3 py-2 rounded-lg flex items-center gap-2 transition-colors flex-shrink-0 ${
+            isEmojied 
+              ? "bg-red-600 text-white" 
+              : "bg-red-500 hover:bg-red-600 text-white"
+          } cursor-pointer`}
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"
