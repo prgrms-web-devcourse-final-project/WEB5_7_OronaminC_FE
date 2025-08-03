@@ -3,7 +3,6 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuthStore } from "../store/authStore";
 import type { Client, StompSubscription } from "@stomp/stompjs";
 
-// 실제 API에서 사용하는 Question 타입
 interface QuestionItem {
   questionId: number;
   content: string;
@@ -17,7 +16,6 @@ interface QuestionItem {
   createdAt: string;
 }
 
-// 답변 타입
 interface Answer {
   answerId: number;
   questionId: number;
@@ -39,14 +37,12 @@ interface QuestionItemProps {
   question: QuestionItem;
   roomId: string;
   stompClient: Client | null;
-  isSubscribed: boolean;
 }
 
 export const QuestionItem = ({
   question,
   roomId,
   stompClient,
-  isSubscribed,
 }: QuestionItemProps) => {
   const [showAnswers, setShowAnswers] = useState(false);
   const [replyContent, setReplyContent] = useState("");
@@ -58,7 +54,6 @@ export const QuestionItem = ({
 
   const formattedTime = new Date(question.createdAt).toLocaleString();
 
-  // 답변 조회 쿼리
   const {
     data: answersData,
     isLoading: isAnswersLoading,
@@ -83,20 +78,12 @@ export const QuestionItem = ({
     enabled: showAnswers,
   });
 
-  // 답변 보기/숨기기 토글
   const toggleAnswers = () => {
     setShowAnswers(!showAnswers);
   };
 
-  // 답변 전송
   const sendAnswer = () => {
-    if (!replyContent.trim() || !stompClient || !isSubscribed || !user?.id) {
-      console.log("답변 전송 조건 미충족:", {
-        content: replyContent.trim(),
-        stompClient: !!stompClient,
-        isSubscribed,
-        userId: user?.id,
-      });
+    if (!replyContent.trim() || !stompClient || !user?.id) {
       return;
     }
 
@@ -105,22 +92,15 @@ export const QuestionItem = ({
       memberId: user.id,
     };
 
-    console.log(
-      `[Question Item] 답변 전송: /app/rooms/${roomId}/question/${question.questionId}/answers/create`,
-      answerData
-    );
-
     try {
       stompClient.publish({
         destination: `/app/rooms/${roomId}/question/${question.questionId}/answers/create`,
         body: JSON.stringify(answerData),
       });
 
-      // 답변 전송 후 상태 초기화
       setReplyContent("");
       setIsReplying(false);
 
-      // 답변 목록 새로고침
       queryClient.invalidateQueries({
         queryKey: ["answers", roomId, question.questionId],
       });
@@ -129,7 +109,6 @@ export const QuestionItem = ({
     }
   };
 
-  // 답변 입력 키 이벤트
   const handleAnswerKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
@@ -137,9 +116,8 @@ export const QuestionItem = ({
     }
   };
 
-  // 질문 공감 토글
   const toggleQuestionEmoji = () => {
-    if (!stompClient || !isSubscribed || !user?.id) {
+    if (!stompClient || !user?.id) {
       return;
     }
 
@@ -163,9 +141,8 @@ export const QuestionItem = ({
     }
   };
 
-  // 답변 공감 토글
   const toggleAnswerEmoji = (answer: Answer) => {
-    if (!stompClient || !isSubscribed || !user?.id) {
+    if (!stompClient || !user?.id) {
       return;
     }
 
@@ -189,13 +166,11 @@ export const QuestionItem = ({
     }
   };
 
-  // 이모지 및 답변 이벤트 구독 및 처리
   useEffect(() => {
-    if (!stompClient || !isSubscribed) return;
+    if (!stompClient) return;
 
     const subscriptions: StompSubscription[] = [];
 
-    // 이모지 이벤트 구독
     const emojiSubscription = stompClient.subscribe(
       `/topic/rooms/${roomId}/emojis`,
       (message) => {
@@ -206,14 +181,12 @@ export const QuestionItem = ({
             emojiEvent.targetType === "QUESTION" &&
             emojiEvent.targetId === currentQuestion.questionId
           ) {
-            // 질문 공감 업데이트
             setCurrentQuestion((prev) => ({
               ...prev,
               emojiCount: emojiEvent.emojiCount,
               isEmojied: emojiEvent.event === "CREATE" ? true : prev.isEmojied,
             }));
           } else if (emojiEvent.targetType === "ANSWER") {
-            // 답변 공감 업데이트
             setCurrentAnswers((prev) =>
               prev.map((answer) =>
                 answer.answerId === emojiEvent.targetId
@@ -234,15 +207,16 @@ export const QuestionItem = ({
     );
     subscriptions.push(emojiSubscription);
 
-    // 답변 이벤트 구독
     const answerSubscription = stompClient.subscribe(
       `/topic/rooms/${roomId}/answers`,
       (message) => {
         try {
           const answerEvent = JSON.parse(message.body);
-          
-          if (answerEvent.event === "CREATE" && answerEvent.questionId === currentQuestion.questionId) {
-            // 새 답변을 현재 답변 목록에 추가
+
+          if (
+            answerEvent.event === "CREATE" &&
+            answerEvent.questionId === currentQuestion.questionId
+          ) {
             const newAnswer: Answer = {
               answerId: answerEvent.answerId,
               questionId: answerEvent.questionId,
@@ -252,10 +226,9 @@ export const QuestionItem = ({
               writer: answerEvent.writer,
               createdAt: answerEvent.createdAt,
             };
-            
+
             setCurrentAnswers((prev) => [...prev, newAnswer]);
-            
-            // 질문의 hasAnswer 상태 업데이트
+
             setCurrentQuestion((prev) => ({
               ...prev,
               hasAnswer: true,
@@ -269,18 +242,16 @@ export const QuestionItem = ({
     subscriptions.push(answerSubscription);
 
     return () => {
-      subscriptions.forEach(subscription => subscription.unsubscribe());
+      subscriptions.forEach((subscription) => subscription.unsubscribe());
     };
-  }, [stompClient, isSubscribed, roomId, currentQuestion.questionId]);
+  }, [stompClient, roomId, currentQuestion.questionId]);
 
-  // 답변 데이터 동기화
   useEffect(() => {
     if (answersData?.answers) {
       setCurrentAnswers(answersData.answers);
     }
   }, [answersData]);
 
-  // 질문 데이터 동기화
   useEffect(() => {
     setCurrentQuestion(question);
   }, [question]);
@@ -296,12 +267,11 @@ export const QuestionItem = ({
         <div className="flex items-center gap-2">
           <button
             onClick={toggleQuestionEmoji}
-            disabled={!isSubscribed}
             className={`flex items-center gap-1 px-2 py-1 rounded transition-colors ${
               currentQuestion.isEmojied
                 ? "bg-blue-100 text-blue-600"
                 : "text-gray-500 hover:text-blue-500 hover:bg-blue-50"
-            } disabled:opacity-50 disabled:cursor-not-allowed`}
+            }`}
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -376,12 +346,11 @@ export const QuestionItem = ({
                   </div>
                   <button
                     onClick={() => toggleAnswerEmoji(answer)}
-                    disabled={!isSubscribed}
                     className={`flex items-center gap-1 px-2 py-1 rounded transition-colors ${
                       answer.isEmojied
                         ? "bg-blue-100 text-blue-600"
                         : "text-gray-500 hover:text-blue-500 hover:bg-blue-50"
-                    } disabled:opacity-50 disabled:cursor-not-allowed`}
+                    }`}
                   >
                     <span className="text-xs">{answer.emojiCount}</span>
                     <svg
@@ -427,13 +396,12 @@ export const QuestionItem = ({
                     value={replyContent}
                     onChange={(e) => setReplyContent(e.target.value)}
                     onKeyPress={handleAnswerKeyPress}
-                    disabled={!isSubscribed}
                   />
                 </div>
                 <button
                   type="button"
                   onClick={sendAnswer}
-                  disabled={!isSubscribed || !replyContent.trim()}
+                  disabled={!replyContent.trim()}
                   className="bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 text-white px-4 py-2 font-medium transition-colors m-2 rounded-lg cursor-pointer"
                 >
                   답변

@@ -105,7 +105,6 @@ const PresentationRoom = () => {
 
   const [participantCount, setParticipantCount] = useState<number>(0);
   const { user } = useAuthStore();
-  const [isSubscribed, setIsSubscribed] = useState<boolean>(false);
   const stompClientRef = useRef<Client | null>(null);
   const [realTimeQuestions, setRealTimeQuestions] = useState<QuestionItem[]>(
     []
@@ -262,15 +261,9 @@ const PresentationRoom = () => {
               alert("답변 이벤트 파싱 오류");
             }
           });
-
-          setIsSubscribed(true);
-        },
-        onDisconnect: () => {
-          setIsSubscribed(false);
         },
         onStompError: (frame) => {
           console.error("[PresentationRoom] STOMP 오류:", frame);
-          setIsSubscribed(false);
 
           try {
             // STOMP 오류 메시지에서 JSON 파싱 시도
@@ -396,7 +389,6 @@ const PresentationRoom = () => {
                       question={question}
                       roomId={roomId || ""}
                       stompClient={stompClientRef.current}
-                      isSubscribed={isSubscribed}
                     />
                   </div>
                 ))

@@ -5,7 +5,6 @@ import { Client } from "@stomp/stompjs";
 import SockJS from "sockjs-client";
 import { useAuthStore } from "../store/authStore";
 
-// PDF.js worker 설정
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
 interface PdfViewerProps {
@@ -14,21 +13,17 @@ interface PdfViewerProps {
 }
 
 export const PdfViewer = ({ roomData, roomId }: PdfViewerProps) => {
-  // PDF viewer 상태
   const [numPages, setNumPages] = useState<number | null>(null);
   const [pageNumber, setPageNumber] = useState<number>(1);
   const [scale, setScale] = useState<number>(1.0);
   const [pdfError, setPdfError] = useState<string | null>(null);
 
-  // 이모지 관련 상태
   const [currentEmojiCount, setCurrentEmojiCount] = useState<number>(
     roomData?.emojiCount || 0
   );
-  const [isSubscribed, setIsSubscribed] = useState<boolean>(false);
   const stompClientRef = useRef<Client | null>(null);
   const { user } = useAuthStore();
 
-  // PDF viewer 함수들
   const onDocumentLoadSuccess = ({ numPages }: { numPages: number }) => {
     setNumPages(numPages);
     setPageNumber(1);
@@ -56,9 +51,11 @@ export const PdfViewer = ({ roomData, roomId }: PdfViewerProps) => {
     setScale((prev) => Math.max(prev - 0.2, 0.5));
   };
 
-  // 발표방 이모지 전송
   const sendEmoji = () => {
-    if (!stompClientRef.current || !isSubscribed || !user?.id || !roomId) {
+    console.log("stompClientRef", stompClientRef.current);
+    console.log("user", user);
+    console.log("roomId", roomId);
+    if (!stompClientRef.current || !user?.id || !roomId) {
       return;
     }
 
@@ -78,7 +75,6 @@ export const PdfViewer = ({ roomData, roomId }: PdfViewerProps) => {
     }
   };
 
-  // STOMP 웹소켓 연결
   useEffect(() => {
     if (!roomId) return;
 
@@ -102,15 +98,9 @@ export const PdfViewer = ({ roomData, roomId }: PdfViewerProps) => {
             alert("[PDF Viewer] 이모지 이벤트 파싱 실패");
           }
         });
+      },
 
-        setIsSubscribed(true);
-      },
-      onDisconnect: () => {
-        setIsSubscribed(false);
-      },
       onStompError: (frame) => {
-        setIsSubscribed(false);
-
         try {
           const errorBody = frame.body;
           if (errorBody) {
@@ -133,11 +123,9 @@ export const PdfViewer = ({ roomData, roomId }: PdfViewerProps) => {
         stompClientRef.current.deactivate();
         stompClientRef.current = null;
       }
-      setIsSubscribed(false);
     };
   }, [roomId]);
 
-  // roomData 변경 시 이모지 카운트 동기화
   useEffect(() => {
     if (roomData?.emojiCount !== undefined) {
       setCurrentEmojiCount(roomData.emojiCount);
@@ -238,20 +226,15 @@ export const PdfViewer = ({ roomData, roomId }: PdfViewerProps) => {
         </div>
         <button
           onClick={sendEmoji}
-          disabled={!isSubscribed}
-          className={`px-3 py-2 rounded-lg flex items-center gap-2 transition-colors flex-shrink-0 ${
-            isSubscribed
-              ? "bg-red-500 hover:bg-red-600 text-white cursor-pointer"
-              : "bg-gray-300 text-gray-500 cursor-not-allowed"
-          }`}
+          className={`px-3 py-2 rounded-lg flex items-center gap-2 transition-colors flex-shrink-0 bg-red-500 hover:bg-red-600 text-white cursor-pointer`}
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"
             width="24"
             height="24"
             viewBox="0 0 24 24"
-            fill={isSubscribed ? "white" : "currentColor"}
-            stroke={isSubscribed ? "white" : "currentColor"}
+            fill="white"
+            stroke="white"
             strokeWidth="2"
             strokeLinecap="round"
             strokeLinejoin="round"
