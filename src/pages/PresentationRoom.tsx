@@ -327,7 +327,11 @@ const PresentationRoom = () => {
 
   return (
     <div className="flex w-full mx-auto bg-gray-100 overflow-hidden">
-      <PdfViewer roomData={roomData || undefined} roomId={roomId} />
+      <PdfViewer
+        roomData={roomData || undefined}
+        roomId={roomId}
+        stompClient={stompClientRef.current}
+      />
 
       <div className="w-1/3 h-screen p-4 flex flex-col overflow-hidden">
         {/* 연결 상태 및 참여자 수 표시 */}

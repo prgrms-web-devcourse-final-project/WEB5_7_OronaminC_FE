@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { Document, Page, pdfjs } from "react-pdf";
 import type { RoomData } from "./PresentationRoom";
 import { Client } from "@stomp/stompjs";
@@ -10,9 +10,14 @@ pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/b
 interface PdfViewerProps {
   roomData: RoomData | undefined;
   roomId?: string;
+  stompClient: Client | null;
 }
 
-export const PdfViewer = ({ roomData, roomId }: PdfViewerProps) => {
+export const PdfViewer = ({
+  roomData,
+  roomId,
+  stompClient,
+}: PdfViewerProps) => {
   const [numPages, setNumPages] = useState<number | null>(null);
   const [pageNumber, setPageNumber] = useState<number>(1);
   const [scale, setScale] = useState<number>(1.0);
@@ -22,7 +27,7 @@ export const PdfViewer = ({ roomData, roomId }: PdfViewerProps) => {
     roomData?.emojiCount || 0
   );
   const [isEmojied, setIsEmojied] = useState<boolean>(false);
-  const stompClientRef = useRef<Client | null>(null);
+
   const { user } = useAuthStore();
 
   const onDocumentLoadSuccess = ({ numPages }: { numPages: number }) => {
@@ -53,7 +58,7 @@ export const PdfViewer = ({ roomData, roomId }: PdfViewerProps) => {
   };
 
   const sendEmoji = () => {
-    if (!stompClientRef.current || !user?.id || !roomId) {
+    if (!stompClient || !user?.id || !roomId) {
       return;
     }
 
@@ -68,14 +73,17 @@ export const PdfViewer = ({ roomData, roomId }: PdfViewerProps) => {
       ? `/app/rooms/${roomId}/emojis/delete`
       : `/app/rooms/${roomId}/emojis/create`;
 
+    console.log(destination);
     try {
-      stompClientRef.current.publish({
+      stompClient.publish({
         destination,
         body: JSON.stringify(emojiData),
       });
-      
+
+      console.log("이모지 전송 성공");
+
       // 이모지 전송 성공 시 즉시 로컬 상태 업데이트
-      setIsEmojied(prev => !prev);
+      setIsEmojied((prev) => !prev);
     } catch (error) {
       console.error("[PDF Viewer] 이모지 전송 실패:", error);
       alert("이모지 전송에 실패했습니다.");
@@ -123,13 +131,13 @@ export const PdfViewer = ({ roomData, roomId }: PdfViewerProps) => {
       },
     });
 
-    stompClientRef.current = client;
+    stompClient = client;
     client.activate();
 
     return () => {
-      if (stompClientRef.current) {
-        stompClientRef.current.deactivate();
-        stompClientRef.current = null;
+      if (stompClient) {
+        stompClient.deactivate();
+        stompClient = null;
       }
     };
   }, [roomId]);
@@ -242,8 +250,8 @@ export const PdfViewer = ({ roomData, roomId }: PdfViewerProps) => {
         <button
           onClick={sendEmoji}
           className={`px-3 py-2 rounded-lg flex items-center gap-2 transition-colors flex-shrink-0 ${
-            isEmojied 
-              ? "bg-red-600 text-white" 
+            isEmojied
+              ? "bg-red-600 text-white"
               : "bg-red-500 hover:bg-red-600 text-white"
           } cursor-pointer`}
         >
