@@ -315,7 +315,9 @@ const PresentationRoom = () => {
       index === self.findIndex((q) => q.questionId === question.questionId)
   );
 
-  const filteredQuestions = uniqueQuestions;
+  const filteredQuestions = activeTab === "MYQUESTION" 
+    ? uniqueQuestions.filter(question => question.writer.memberId === user?.id)
+    : uniqueQuestions;
 
   const sortedQuestions = [...filteredQuestions].sort((a, b) => {
     if (activeTab === "EMOJI") {
