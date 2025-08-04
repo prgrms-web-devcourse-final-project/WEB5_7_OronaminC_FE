@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { Document, Page, pdfjs } from "react-pdf";
 import type { RoomData } from "./PresentationRoom";
 import { Client } from "@stomp/stompjs";
-import SockJS from "sockjs-client";
 import { useAuthStore } from "../store/authStore";
 
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
@@ -58,7 +57,8 @@ export const PdfViewer = ({
   };
 
   const sendEmoji = () => {
-    if (!stompClient || !user?.id || !roomId) {
+    if (!stompClient || !stompClient.connected || !user?.id || !roomId) {
+      alert("연결 상태를 확인해주세요.");
       return;
     }
 
@@ -68,79 +68,49 @@ export const PdfViewer = ({
       memberId: user.id,
     };
 
-    // 현재 상태에 따라 create 또는 delete 결정
     const destination = isEmojied
       ? `/app/rooms/${roomId}/emojis/delete`
       : `/app/rooms/${roomId}/emojis/create`;
 
-    console.log(destination);
     try {
       stompClient.publish({
         destination,
         body: JSON.stringify(emojiData),
       });
 
-      console.log("이모지 전송 성공");
-
-      // 이모지 전송 성공 시 즉시 로컬 상태 업데이트
       setIsEmojied((prev) => !prev);
-    } catch (error) {
-      console.error("[PDF Viewer] 이모지 전송 실패:", error);
+    } catch {
       alert("이모지 전송에 실패했습니다.");
     }
   };
 
   useEffect(() => {
-    if (!roomId) return;
+    if (!roomId || !stompClient || !stompClient.connected) return;
 
-    const client = new Client({
-      webSocketFactory: () => new SockJS("/ws"),
-      reconnectDelay: 5000,
-      heartbeatIncoming: 4000,
-      heartbeatOutgoing: 4000,
-      onConnect: () => {
-        client.subscribe(`/topic/rooms/${roomId}/emojis`, (message) => {
-          try {
-            const emojiEvent = JSON.parse(message.body);
-
-            if (
-              emojiEvent.targetType === "ROOM" &&
-              emojiEvent.targetId === parseInt(roomId)
-            ) {
-              // 이모지 카운트만 업데이트 (isEmojied는 전송 시점에 이미 업데이트됨)
-              setCurrentEmojiCount(emojiEvent.emojiCount);
-            }
-          } catch (error) {
-            console.error("[PDF Viewer] 이모지 이벤트 파싱 실패:", error);
-          }
-        });
-      },
-
-      onStompError: (frame) => {
+    const subscription = stompClient.subscribe(
+      `/topic/rooms/${roomId}/emojis`,
+      (message) => {
         try {
-          const errorBody = frame.body;
-          if (errorBody) {
-            const errorData = JSON.parse(errorBody);
-            if (errorData.message) {
-              alert(`오류: ${errorData.message}`);
-            }
+          const emojiEvent = JSON.parse(message.body);
+
+          if (
+            emojiEvent.targetType === "ROOM" &&
+            emojiEvent.targetId === parseInt(roomId)
+          ) {
+            setCurrentEmojiCount(emojiEvent.emojiCount);
           }
         } catch {
-          alert("연결 오류가 발생했습니다.");
+          alert("이모지 이벤트 파싱 실패");
         }
-      },
-    });
-
-    stompClient = client;
-    client.activate();
+      }
+    );
 
     return () => {
-      if (stompClient) {
-        stompClient.deactivate();
-        stompClient = null;
+      if (subscription) {
+        subscription.unsubscribe();
       }
     };
-  }, [roomId]);
+  }, [roomId, stompClient]);
 
   useEffect(() => {
     if (roomData?.emojiCount !== undefined) {
@@ -148,7 +118,6 @@ export const PdfViewer = ({
     }
   }, [roomData?.emojiCount]);
 
-  // 사용자 로그인 상태가 변경될 때 isEmojied 상태 초기화
   useEffect(() => {
     if (!user?.id) {
       setIsEmojied(false);

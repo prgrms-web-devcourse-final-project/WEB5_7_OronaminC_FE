@@ -266,7 +266,6 @@ const PresentationRoom = () => {
           console.error("[PresentationRoom] STOMP 오류:", frame);
 
           try {
-            // STOMP 오류 메시지에서 JSON 파싱 시도
             const errorBody = frame.body;
             if (errorBody) {
               const errorData = JSON.parse(errorBody);
@@ -315,9 +314,12 @@ const PresentationRoom = () => {
       index === self.findIndex((q) => q.questionId === question.questionId)
   );
 
-  const filteredQuestions = activeTab === "MYQUESTION" 
-    ? uniqueQuestions.filter(question => question.writer.memberId === user?.id)
-    : uniqueQuestions;
+  const filteredQuestions =
+    activeTab === "MYQUESTION"
+      ? uniqueQuestions.filter(
+          (question) => question.writer.memberId === user?.id
+        )
+      : uniqueQuestions;
 
   const sortedQuestions = [...filteredQuestions].sort((a, b) => {
     if (activeTab === "EMOJI") {
