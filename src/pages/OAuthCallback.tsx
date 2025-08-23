@@ -33,6 +33,7 @@ const OAuthCallback = () => {
         });
         if (response.ok) {
           const userData = await response.json();
+          console.log("✅ 받아온 토큰 정보:", userData); 
           setUser(userData);
           navigate("/mypage");
         }

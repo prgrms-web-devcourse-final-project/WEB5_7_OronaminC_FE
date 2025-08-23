@@ -187,7 +187,7 @@ const PresentationRoom = () => {
     if (!roomId) return;
 
     const connectWebSocket = () => {
-      const socket = new SockJS("http://15.165.241.81:8080/ws");
+      const socket = new SockJS("http://localhost:8080/ws");
 
       const stompClient = new Client({
         webSocketFactory: () => socket,

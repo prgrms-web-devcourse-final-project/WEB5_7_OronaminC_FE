@@ -165,7 +165,7 @@ const LoginModal = ({
                   onClick={() => {
                     // 직접 백엔드 OAuth URL로 이동
                     window.location.href =
-                      "http://15.165.241.81:8080/oauth2/authorization/kakao";
+                      "/oauth2/authorization/kakao";
                   }}
                 >
                   <img
