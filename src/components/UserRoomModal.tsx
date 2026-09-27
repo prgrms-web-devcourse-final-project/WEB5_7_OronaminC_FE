@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { apiFetch } from "../lib/api";
 
 interface UserRoomModalProps {
   isOpen: boolean;
@@ -15,7 +16,7 @@ const LoginModal = ({ isOpen, onClose }: UserRoomModalProps) => {
     if (!inviteCode.trim()) return;
 
     try {
-      const response = await fetch("/api/rooms/code", {
+      const response = await apiFetch("/api/rooms/code", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

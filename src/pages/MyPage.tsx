@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { apiFetch } from "../lib/api";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 type FilterType = "전체" | "생성한 방" | "참여한 방";
@@ -28,7 +29,7 @@ const MyPage = () => {
   const { data: userInfo } = useQuery({
     queryKey: ["userInfo"],
     queryFn: async () => {
-      const response = await fetch("/api/members/me", {
+      const response = await apiFetch("/api/members/me", {
         credentials: "include",
       });
       if (!response.ok) throw new Error("회원 정보 조회 실패");
@@ -50,7 +51,7 @@ const MyPage = () => {
           ? "CREATED"
           : "JOINED";
 
-      const response = await fetch(
+      const response = await apiFetch(
         `/api/members/rooms?type=${typeParam}&page=${currentPage}&size=${pageSize}`,
         {
           credentials: "include",
@@ -124,7 +125,7 @@ const MyPage = () => {
     if (!roomToDelete) return;
 
     try {
-      const response = await fetch(`/api/rooms/${roomToDelete}`, {
+      const response = await apiFetch(`/api/rooms/${roomToDelete}`, {
         method: "DELETE",
         credentials: "include",
       });

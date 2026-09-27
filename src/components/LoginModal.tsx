@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMutate } from "../hooks/useFetch";
-import type { User } from "../types/user";
+import type { AuthTokenResponse } from "../store/authStore";
 import { useAuthStore } from "../store/authStore";
+import { apiFetch } from "../lib/api";
 
 interface LoginModalProps {
   isOpen: boolean;
@@ -18,7 +19,7 @@ const LoginModal = ({
   type,
 }: LoginModalProps) => {
   const navigate = useNavigate();
-  const { setUser, logout, isAuthenticated } = useAuthStore();
+  const { setAuth, logout, isAuthenticated } = useAuthStore();
 
   const [nickname, setNickname] = useState("");
   const [roomCode, setRoomCode] = useState(initialRoomCode);
@@ -49,7 +50,7 @@ const LoginModal = ({
   const handleRoomEntry = async (roomCode: string) => {
     if (!roomCode.trim()) return;
     try {
-      const response = await fetch("/api/rooms/code", {
+      const response = await apiFetch("/api/rooms/code", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -77,8 +78,8 @@ const LoginModal = ({
 
   const guestLoginMutation = useMutate("/api/auth/guest", "POST", {
     onSuccess: (data) => {
-      const userData = data as User;
-      setUser(userData);
+      const { token } = data as { token: AuthTokenResponse };
+      setAuth(token);
       handleRoomEntry(roomCode);
     },
     onError: (error) => {
@@ -163,9 +164,8 @@ const LoginModal = ({
                   type="button"
                   className="w-full py-3 px-4 bg-[#FEE500] hover:bg-[#FFDE00] text-[#3C1E1E] font-medium rounded-md flex items-center justify-center gap-2 transition-all duration-200 shadow hover:shadow-md relative overflow-hidden hover:opacity-90 cursor-pointer"
                   onClick={() => {
-                    // 직접 백엔드 OAuth URL로 이동
-                    window.location.href =
-                      "http://15.165.241.81:8080/oauth2/authorization/kakao";
+                    // 백엔드 OAuth URL로 이동 (개발 서버에서는 vite 프록시 경유)
+                    window.location.href = "/oauth2/authorization/kakao";
                   }}
                 >
                   <img
@@ -217,16 +217,19 @@ const LoginModal = ({
                       guestLoginMutation.isPending
                     }
                     onClick={() => {
-                      if (nickname.trim().length > 7) {
-                        alert("닉네임은 6자 이하로 입력해주세요");
-                        return;
-                      }
+                      const trimmed = nickname.trim();
 
-                      if (nickname.trim() === "") {
+                      if (trimmed === "") {
                         alert("닉네임을 입력해주세요");
                         return;
                       }
-                      guestLoginMutation.mutate({ nickname });
+
+                      // 백엔드 GuestLoginRequest 검증과 동일 (2~8자)
+                      if (trimmed.length < 2 || trimmed.length > 8) {
+                        alert("닉네임은 2~8자로 입력해주세요");
+                        return;
+                      }
+                      guestLoginMutation.mutate({ nickname: trimmed });
                     }}
                   >
                     {guestLoginMutation.isPending

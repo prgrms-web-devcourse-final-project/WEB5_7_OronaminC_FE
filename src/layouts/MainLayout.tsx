@@ -8,6 +8,7 @@ import {
 import LoginModal from "../components/LoginModal";
 import { useState } from "react";
 import { useAuthStore } from "../store/authStore";
+import { apiFetch } from "../lib/api";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import UserRoomModal from "../components/UserRoomModal";
 
@@ -46,7 +47,7 @@ const MainLayout = () => {
     queryKey: ["room", roomId],
     queryFn: async () => {
       if (!roomId) return null;
-      const response = await fetch(`/api/rooms/${roomId}`, {
+      const response = await apiFetch(`/api/rooms/${roomId}`, {
         credentials: "include",
       });
       if (!response.ok) throw new Error("방 정보 조회 실패");
@@ -57,7 +58,7 @@ const MainLayout = () => {
 
   const startRoomMutation = useMutation({
     mutationFn: async (roomId: string) => {
-      const response = await fetch(`/api/rooms/${roomId}/status`, {
+      const response = await apiFetch(`/api/rooms/${roomId}/status`, {
         method: "PATCH",
         credentials: "include",
         headers: {
@@ -92,7 +93,7 @@ const MainLayout = () => {
     ) {
       try {
         // 발표방 종료 API 호출
-        const response = await fetch(`/api/rooms/${roomId}/status`, {
+        const response = await apiFetch(`/api/rooms/${roomId}/status`, {
           method: "PATCH",
           credentials: "include",
           headers: {
@@ -112,7 +113,7 @@ const MainLayout = () => {
     } else {
       try {
         if (isAuthenticated) {
-          const response = await fetch("/api/auth/logout", {
+          const response = await apiFetch("/api/auth/logout", {
             method: "POST",
             credentials: "include",
             headers: {

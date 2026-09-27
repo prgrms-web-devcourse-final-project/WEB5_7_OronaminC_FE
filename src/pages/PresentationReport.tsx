@@ -1,4 +1,5 @@
 import { useParams, Link } from "react-router-dom";
+import { apiFetch } from "../lib/api";
 import { useQuery } from "@tanstack/react-query";
 
 type ReportData = {
@@ -25,7 +26,7 @@ const PresentationReport = () => {
   } = useQuery<ReportData>({
     queryKey: ["presentationReport", roomId],
     queryFn: async () => {
-      const response = await fetch(`/api/rooms/${roomId}/report`, {
+      const response = await apiFetch(`/api/rooms/${roomId}/report`, {
         credentials: "include",
       });
       if (!response.ok) {

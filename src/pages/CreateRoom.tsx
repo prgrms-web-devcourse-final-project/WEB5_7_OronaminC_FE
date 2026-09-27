@@ -4,6 +4,7 @@ import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import "../styles/datepicker-custom.css";
 import { useNavigate } from "react-router-dom";
+import { apiFetch } from "../lib/api";
 import { useMutation } from "@tanstack/react-query";
 
 interface FormData {
@@ -65,7 +66,7 @@ const CreateRoom = () => {
 
   const createRoomMutation = useMutation({
     mutationFn: async (requestData: CreateRoomRequest) => {
-      const response = await fetch("/api/rooms", {
+      const response = await apiFetch("/api/rooms", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -83,7 +84,7 @@ const CreateRoom = () => {
 
   const getPresignedUrlMutation = useMutation({
     mutationFn: async (fileData: PresignedUrlRequest) => {
-      const response = await fetch("/api/documents/presigned-url", {
+      const response = await apiFetch("/api/documents/presigned-url", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -232,7 +233,7 @@ const CreateRoom = () => {
   const addEmail = async () => {
     if (currentEmail && !emails.includes(currentEmail)) {
       try {
-        const response = await fetch(
+        const response = await apiFetch(
           `/api/members/exists?email=${encodeURIComponent(currentEmail)}`,
           {
             method: "GET",

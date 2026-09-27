@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuthStore } from "../store/authStore";
+import { apiFetch } from "../lib/api";
 import type { Client, StompSubscription } from "@stomp/stompjs";
 
 interface QuestionItem {
@@ -61,7 +62,7 @@ export const QuestionItem = ({
   } = useQuery<AnswersResponse>({
     queryKey: ["answers", roomId, question.questionId],
     queryFn: async () => {
-      const response = await fetch(
+      const response = await apiFetch(
         `/api/rooms/${roomId}/questions/${question.questionId}/answers`,
         {
           credentials: "include",

@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { useParams } from "react-router-dom";
+import { apiFetch, getValidAccessToken } from "../lib/api";
 import { useQuery } from "@tanstack/react-query";
 import { useAuthStore } from "../store/authStore";
 import "react-pdf/dist/Page/AnnotationLayer.css";
@@ -8,6 +9,8 @@ import { QuestionItem } from "./question";
 import { PdfViewer } from "./pdfViewer";
 import { Client } from "@stomp/stompjs";
 import SockJS from "sockjs-client";
+
+const WS_URL = import.meta.env.VITE_WS_URL ?? "/ws";
 
 interface Slide {
   title: string;
@@ -106,6 +109,8 @@ const PresentationRoom = () => {
   const [participantCount, setParticipantCount] = useState<number>(0);
   const { user } = useAuthStore();
   const stompClientRef = useRef<Client | null>(null);
+  // 연결이 완료된 클라이언트. 자식 컴포넌트는 이 값이 바뀔 때 구독을 (재)등록한다
+  const [connectedClient, setConnectedClient] = useState<Client | null>(null);
   const [realTimeQuestions, setRealTimeQuestions] = useState<QuestionItem[]>(
     []
   );
@@ -117,7 +122,7 @@ const PresentationRoom = () => {
   } = useQuery<RoomData>({
     queryKey: ["room", roomId],
     queryFn: async () => {
-      const response = await fetch(`/api/rooms/${roomId}`, {
+      const response = await apiFetch(`/api/rooms/${roomId}`, {
         credentials: "include",
       });
       if (!response.ok) throw new Error("방 정보 조회 실패");
@@ -144,7 +149,7 @@ const PresentationRoom = () => {
         size: "10",
       });
 
-      const response = await fetch(`/api/rooms/${roomId}/questions?${params}`, {
+      const response = await apiFetch(`/api/rooms/${roomId}/questions?${params}`, {
         credentials: "include",
       });
       if (!response.ok) throw new Error("질문 조회 실패");
@@ -187,19 +192,20 @@ const PresentationRoom = () => {
     if (!roomId) return;
 
     const connectWebSocket = () => {
-      const socket = new SockJS("http://15.165.241.81:8080/ws");
-
       const stompClient = new Client({
-        webSocketFactory: () => socket,
+        // 재연결 시마다 새 SockJS 인스턴스가 필요하다
+        webSocketFactory: () => new SockJS(WS_URL),
+
+        // 서버는 CONNECT 프레임의 Authorization 헤더로 인증한다. 재연결 때도 최신 토큰을 싣는다
+        beforeConnect: async () => {
+          const token = await getValidAccessToken();
+          stompClient.connectHeaders = token
+            ? { Authorization: `Bearer ${token}` }
+            : {};
+        },
 
         onConnect: () => {
-          stompClient.publish({
-            destination: `/app/rooms/${roomId}/join`,
-            body: JSON.stringify({
-              memberId: user?.id,
-            }),
-          });
-
+          // 입장 브로드캐스트를 놓치지 않도록 구독을 먼저 한 뒤 join을 보낸다
           stompClient.subscribe(`/topic/rooms/${roomId}/join`, (message) => {
             try {
               const data = JSON.parse(message.body);
@@ -261,6 +267,18 @@ const PresentationRoom = () => {
               alert("답변 이벤트 파싱 오류");
             }
           });
+
+          stompClient.publish({
+            destination: `/app/rooms/${roomId}/join`,
+            body: JSON.stringify({
+              memberId: user?.id,
+            }),
+          });
+
+          setConnectedClient(stompClient);
+        },
+        onWebSocketClose: () => {
+          setConnectedClient(null);
         },
         onStompError: (frame) => {
           console.error("[PresentationRoom] STOMP 오류:", frame);
@@ -289,6 +307,7 @@ const PresentationRoom = () => {
       if (stompClientRef.current) {
         stompClientRef.current.deactivate();
       }
+      setConnectedClient(null);
     };
   }, [roomId, user?.id]);
 
@@ -334,7 +353,7 @@ const PresentationRoom = () => {
       <PdfViewer
         roomData={roomData || undefined}
         roomId={roomId}
-        stompClient={stompClientRef.current}
+        stompClient={connectedClient}
       />
 
       <div className="w-1/3 h-screen p-4 flex flex-col overflow-hidden">
@@ -396,7 +415,7 @@ const PresentationRoom = () => {
                     <QuestionItem
                       question={question}
                       roomId={roomId || ""}
-                      stompClient={stompClientRef.current}
+                      stompClient={connectedClient}
                     />
                   </div>
                 ))

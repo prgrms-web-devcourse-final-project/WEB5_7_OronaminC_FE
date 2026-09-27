@@ -8,11 +8,22 @@ interface User {
   role: string;
 }
 
+// 백엔드 로그인/토큰 재발급 응답 (AuthTokenResponse)
+export interface AuthTokenResponse {
+  accessToken: string;
+  accessTokenExpiresIn: number;
+  memberId: number;
+  nickname: string;
+  role: string;
+}
+
 interface AuthState {
   user: User | null;
   isAuthenticated: boolean;
+  accessToken: string | null;
+  accessTokenExpiresAt: number | null;
 
-  setUser: (user: User | null) => void;
+  setAuth: (token: AuthTokenResponse) => void;
   logout: () => void;
 }
 
@@ -21,18 +32,40 @@ export const useAuthStore = create<AuthState>()(
     (set) => ({
       user: null,
       isAuthenticated: false,
+      accessToken: null,
+      accessTokenExpiresAt: null,
 
-      setUser: (user) => {
-        set({ user, isAuthenticated: !!user });
+      setAuth: (token) => {
+        set({
+          user: {
+            id: token.memberId,
+            name: token.nickname,
+            nickname: token.nickname,
+            role: token.role,
+          },
+          isAuthenticated: true,
+          accessToken: token.accessToken,
+          accessTokenExpiresAt: Date.now() + token.accessTokenExpiresIn,
+        });
       },
 
       logout: () => {
-        set({ user: null, isAuthenticated: false });
+        set({
+          user: null,
+          isAuthenticated: false,
+          accessToken: null,
+          accessTokenExpiresAt: null,
+        });
       },
     }),
     {
       name: "auth-storage",
-      partialize: (state) => ({ user: state.user }),
+      partialize: (state) => ({
+        user: state.user,
+        isAuthenticated: state.isAuthenticated,
+        accessToken: state.accessToken,
+        accessTokenExpiresAt: state.accessTokenExpiresAt,
+      }),
     }
   )
 );

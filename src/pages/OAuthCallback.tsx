@@ -1,11 +1,11 @@
 import { useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { useAuthStore } from "../store/authStore";
+import { useAuthStore, type AuthTokenResponse } from "../store/authStore";
 
 const OAuthCallback = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { setUser } = useAuthStore();
+  const { setAuth } = useAuthStore();
 
   useEffect(() => {
     const handleOAuthCallback = async () => {
@@ -32,8 +32,8 @@ const OAuthCallback = () => {
           body: JSON.stringify({ code, state }),
         });
         if (response.ok) {
-          const userData = await response.json();
-          setUser(userData);
+          const { token } = (await response.json()) as { token: AuthTokenResponse };
+          setAuth(token);
           navigate("/mypage");
         }
       } catch {
@@ -43,7 +43,7 @@ const OAuthCallback = () => {
     };
 
     handleOAuthCallback();
-  }, [searchParams, setUser, navigate]);
+  }, [searchParams, setAuth, navigate]);
 
   return (
     <div className="h-screen flex items-center justify-center">

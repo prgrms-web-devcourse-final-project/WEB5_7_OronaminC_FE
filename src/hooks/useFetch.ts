@@ -1,4 +1,5 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { apiFetch } from "../lib/api";
 
 const BASE_URL = "";
 
@@ -10,7 +11,7 @@ interface FetchOptions {
 
 async function fetchData<T>(url: string, options?: FetchOptions): Promise<T> {
   const fullUrl = url.startsWith("http") ? url : `${BASE_URL}${url}`;
-  const response = await fetch(fullUrl, {
+  const response = await apiFetch(fullUrl, {
     method: options?.method || "GET",
     headers: {
       "Content-Type": "application/json",
